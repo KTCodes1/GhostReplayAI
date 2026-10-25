@@ -1,0 +1,15 @@
+{
+  "name": "@ghost/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "sim": "tsx scripts/sim.ts",
+    "ghosts": "tsx scripts/ghosts.ts",
+    "profiles": "tsx scripts/make-profiles.ts"
+  }
+}

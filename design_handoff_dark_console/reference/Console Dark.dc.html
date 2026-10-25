@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}a{color:#5b9cf5}a:hover{color:#8bb9f8}</style>
+</helmet>
+<div style="width:1440px;display:flex;flex-direction:column;gap:40px;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#e6e8eb;-webkit-font-smoothing:antialiased">
+
+<!-- ===================== LIVE ===================== -->
+<div data-screen-label="1a Live · Ghost moment" style="width:1440px;height:900px;background:#0a0c0f;display:flex;flex-direction:column;overflow:hidden;border:1px solid #20262e">
+
+  <header style="height:48px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:#0f1216;border-bottom:1px solid #20262e">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:22px;height:22px;border-radius:4px;background:#5b9cf5;color:#07111f;display:grid;place-items:center;font-size:10px;font-weight:700;letter-spacing:.02em">GR</div>
+      <span style="font-size:13px;font-weight:600">Ghost Replay</span>
+      <span style="width:1px;height:16px;background:#2b323c"></span>
+      <span style="font-size:12px;color:#a3aab4">Match Intelligence</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#747d89;margin-left:16px">
+      <span>Matches</span><span>/</span><span>Seed 7</span><span>/</span><span style="color:#a3aab4">Northbridge Albion v Kestrel Vale</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#a3aab4;padding:4px 10px;border:1px solid #20262e;border-radius:4px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#4cbb83"></span>Azure OpenAI · Microsoft Foundry
+    </div>
+    <div style="display:flex;gap:8px">
+      <button style="font:inherit;font-size:12px;font-weight:500;color:#e6e8eb;background:#1a1f26;border:1px solid #2b323c;border-radius:4px;padding:6px 12px;cursor:pointer">Match report</button>
+      <button style="font:inherit;font-size:12px;color:#a3aab4;background:transparent;border:1px solid transparent;border-radius:4px;padding:6px 10px;cursor:pointer">New match</button>
+    </div>
+  </header>
+
+  <div style="height:64px;flex:none;display:flex;align-items:center;gap:12px;white-space:nowrap;padding:0 16px;background:#0f1216;border-bottom:1px solid #20262e">
+    <div style="display:flex;align-items:center;gap:14px;flex:none">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="width:3px;height:28px;border-radius:1px;background:#c8102e"></span>
+        <div style="display:flex;flex-direction:column">
+          <span style="font-size:15px;font-weight:600">Northbridge Albion</span>
+          <span style="font-size:11px;color:#747d89;font-family:'IBM Plex Mono',monospace">NBA · 4-3-3 · Home</span>
+        </div>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;padding:2px 14px;background:#0a0c0f;border:1px solid #2b323c;border-radius:4px;font-variant-numeric:tabular-nums">1<span style="color:#747d89;font-weight:400;margin:0 8px">–</span>0</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <span style="font-size:15px;font-weight:600">Kestrel Vale</span>
+          <span style="font-size:11px;color:#747d89;font-family:'IBM Plex Mono',monospace">KVL · 4-2-3-1 · Away</span>
+        </div>
+        <span style="width:3px;height:28px;border-radius:1px;background:#1d428a"></span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;padding-left:16px;border-left:1px solid #20262e;flex:none">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600">63:12</span>
+      <span style="font-size:11px;color:#747d89">2nd half</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.08em;padding:4px 9px;flex:none;border-radius:3px;background:rgba(91,156,245,.12);color:#8bb9f8;border:1px solid rgba(91,156,245,.35)">
+      <span style="width:6px;height:6px;background:#5b9cf5;transform:rotate(45deg)"></span>GHOST MOMENT · PAUSED
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">PLAYBACK</span>
+      <div style="display:flex;background:#14181d;border:1px solid #2b323c;border-radius:4px;padding:2px;gap:2px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+        <span style="padding:3px 8px;color:#a3aab4">1×</span><span style="padding:3px 8px;color:#a3aab4">4×</span><span style="padding:3px 8px;background:#262c35;border-radius:3px;color:#e6e8eb">8×</span><span style="padding:3px 8px;color:#a3aab4">20×</span><span style="padding:3px 8px;color:#a3aab4">60×</span>
+      </div>
+      <button style="font:inherit;font-size:12px;font-weight:500;color:#8bb9f8;background:rgba(91,156,245,.1);border:1px solid rgba(91,156,245,.35);border-radius:4px;padding:6px 12px;cursor:pointer">Next moment</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding-left:16px;border-left:1px solid #20262e">
+      <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">CAMERA</span>
+      <div style="display:flex;background:#14181d;border:1px solid #2b323c;border-radius:4px;padding:2px;gap:2px;font-size:12px">
+        <span style="padding:3px 9px;color:#a3aab4">Broadcast</span><span style="padding:3px 9px;background:#262c35;border-radius:3px">Tactical</span><span style="padding:3px 9px;color:#a3aab4">Pitch level</span><span style="padding:3px 9px;color:#a3aab4">Player</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:36px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#0f1216;border-bottom:1px solid #20262e;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#747d89">
+    <span>0'</span>
+    <div style="flex:1;position:relative;height:4px;background:#1a1f26;border-radius:2px">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:{{ d.progress }};background:#3a6fb8;border-radius:2px"></div>
+      <div style="position:absolute;left:50%;top:-5px;bottom:-5px;width:1px;background:#2b323c"></div>
+      <sc-for list="{{ markers }}" as="m" hint-placeholder-count="6">
+        <div title="{{ m.min }}" style="position:absolute;left:{{ m.left }};top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;background:{{ m.bg }};border-radius:{{ m.rad }};transform:rotate({{ m.rot }});box-shadow:0 0 0 2px #0f1216"></div>
+      </sc-for>
+    </div>
+    <span>90'</span>
+    <div style="display:flex;align-items:center;gap:12px;margin-left:8px;font-family:'IBM Plex Sans',sans-serif">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;background:#5b9cf5;transform:rotate(45deg)"></span>Ghost moment</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#e0b44a"></span>Goal</span>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 420px">
+
+    <aside style="display:flex;flex-direction:column;min-height:0;background:#0f1216;border-right:1px solid #20262e">
+      <nav style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #20262e;flex:none;font-size:12px;font-weight:500">
+        <span style="display:flex;justify-content:center;padding:11px 0;color:#e6e8eb;border-bottom:2px solid #5b9cf5">Stats</span>
+        <span style="display:flex;justify-content:center;align-items:center;gap:5px;padding:11px 0;color:#747d89;border-bottom:2px solid transparent">Timeline<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a3aab4">6</span></span>
+        <span style="display:flex;justify-content:center;padding:11px 0;color:#747d89;border-bottom:2px solid transparent">Player</span>
+        <span style="display:flex;justify-content:center;align-items:center;gap:5px;padding:11px 0;color:#747d89;border-bottom:2px solid transparent">Feed<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a3aab4">24</span></span>
+      </nav>
+      <div style="flex:1;min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#c8102e"></span>NBA</span>
+          <span style="display:flex;align-items:center;gap:6px">KVL<span style="width:8px;height:8px;border-radius:2px;background:#1d428a;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)"></span></span>
+        </div>
+        <sc-for list="{{ d.statGroups }}" as="g" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#747d89">{{ g.title }}</span>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px">
+                  <span style="font-family:'IBM Plex Mono',monospace;font-weight:500">{{ r.h }}</span>
+                  <span style="font-size:11.5px;color:#a3aab4">{{ r.label }}</span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-weight:500">{{ r.a }}</span>
+                </div>
+                <div style="display:flex;gap:2px;height:3px">
+                  <div style="width:{{ r.hp }};background:#c8102e;border-radius:1px"></div>
+                  <div style="width:{{ r.ap }};background:#3561b5;border-radius:1px"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+
+    <section style="display:flex;flex-direction:column;min-width:0;min-height:0;background:#0a0c0f">
+      <div style="height:40px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid #20262e">
+        <span style="font-size:12px;font-weight:600">Pitch</span>
+        <span style="font-size:12px;color:#747d89">Tactical · frozen at <span style="font-family:'IBM Plex Mono',monospace;color:#a3aab4">63:12.4</span></span>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:16px;font-size:11.5px;color:#a3aab4">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:2px;background:#ef7a6b"></span>Chosen</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:2px;background:#5b9cf5"></span>Better option</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:0;border-top:2px dashed #8b95a3"></span>Alternative</span>
+        </div>
+      </div>
+      <div style="flex:1;min-height:0;padding:20px;display:flex;align-items:center;justify-content:center;background:#0d1712">
+        <div style="width:100%;height:100%">{{ pitch }}</div>
+      </div>
+      <div style="height:36px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;border-top:1px solid #20262e;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#747d89">
+        <span style="color:#a3aab4">EVT 0812</span><span>PASS</span><span>HALLORAN → MENSAH</span><span>13 m</span><span>DIFFICULTY 2/10</span><span>43 km/h</span><span style="color:#ef7a6b">xT −0.021</span>
+        <div style="flex:1"></div>
+        <span>22 players · freeze-frame</span>
+      </div>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;min-height:0;background:#0f1216;border-left:1px solid #20262e">
+      <div style="flex:none;padding:16px 20px 14px;border-bottom:1px solid #20262e;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:600;letter-spacing:.08em">
+          <span style="display:flex;align-items:center;gap:7px;color:#8bb9f8"><span style="width:6px;height:6px;background:#5b9cf5;transform:rotate(45deg)"></span>GHOST MOMENT 5 OF 6</span>
+          <span style="font-family:'IBM Plex Mono',monospace;color:#747d89;letter-spacing:0">63' · 2nd half</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:3px;align-self:stretch;background:#c8102e;border-radius:1px"></span>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px;font-weight:600">Kieran Halloran</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;color:#a3aab4;background:#1f252d;padding:1px 5px;border-radius:3px">CM</span></div>
+            <span style="font-size:12px;color:#a3aab4">Northbridge Albion · #8 · chose a pass to Mensah (came off)</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:0 20px 12px;display:flex;flex-direction:column;gap:14px">
+        <section style="display:flex;flex-direction:column;gap:8px;padding-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">WHY IT MATTERED</span>
+            <span style="font-size:10.5px;font-weight:500;color:#8bb9f8;padding:1px 7px;border-radius:3px;border:1px solid rgba(91,156,245,.35)">Azure OpenAI</span>
+          </div>
+          <p style="margin:0;font-size:13.5px;line-height:1.55;color:#e6e8eb;text-wrap:pretty">{{ d.moment.why }}</p>
+        </section>
+
+        <section style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">DECISION COMPARISON</span><span style="font-size:11.5px;color:#8bb9f8">All options (5)</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #2b323c;border-radius:4px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-top:2px solid #ef7a6b">
+              <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#ef7a6b">CHOSEN</span>
+              <span style="font-size:14px;font-weight:600">{{ d.moment.actual.action }}</span>
+              <sc-for list="{{ d.moment.actual.metrics }}" as="mt" hint-placeholder-count="4">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#a3aab4"><span>{{ mt.0 }}</span><span style="font-family:'IBM Plex Mono',monospace;color:#e6e8eb">{{ mt.1 }}</span></div>
+              </sc-for>
+                            <button style="font:inherit;font-size:12px;color:#e6e8eb;background:#1a1f26;border:1px solid #2b323c;border-radius:4px;padding:6px;cursor:pointer">Simulate</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-top:2px solid #5b9cf5;border-left:1px solid #2b323c;background:rgba(91,156,245,.05)">
+              <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#8bb9f8">BETTER OPTION</span>
+              <span style="font-size:14px;font-weight:600">{{ d.moment.ghost.action }}</span>
+              <sc-for list="{{ d.moment.ghost.metrics }}" as="mt" hint-placeholder-count="4">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#a3aab4"><span>{{ mt.0 }}</span><span style="font-family:'IBM Plex Mono',monospace;color:#e6e8eb">{{ mt.1 }}</span></div>
+              </sc-for>
+                            <button style="font:inherit;font-size:12px;font-weight:600;color:#07111f;background:#5b9cf5;border:1px solid #5b9cf5;border-radius:4px;padding:6px;cursor:pointer">Simulate 50 runs</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="display:flex;align-items:baseline;gap:8px;padding:8px 12px;background:#14181d;border-radius:4px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#8bb9f8">+0.142</span>
+              <span style="font-size:11px;color:#a3aab4;line-height:1.35">Expected value left on the table</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;padding:8px 12px;background:#14181d;border-radius:4px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#8bb9f8">+0.119</span>
+              <span style="font-size:11px;color:#a3aab4;line-height:1.35">xG gained across 50 simulations</span>
+            </div>
+          </div>
+        </section>
+
+        <section style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">KEY FACTORS</span>
+          <sc-for list="{{ factors }}" as="f" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:12px 1fr;gap:8px;font-size:12.5px;line-height:1.45;color:#a3aab4">
+              <span style="width:5px;height:5px;border-radius:50%;background:{{ f.c }};margin-top:7px"></span><span>{{ f.text }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+              </div>
+
+      <div style="flex:none;display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px 20px;border-top:1px solid #20262e">
+        <button style="font:inherit;font-size:13px;font-weight:600;color:#07111f;background:#5b9cf5;border:1px solid #5b9cf5;border-radius:4px;padding:9px;cursor:pointer">Continue match</button>
+        <button style="font:inherit;font-size:13px;color:#e6e8eb;background:#1a1f26;border:1px solid #2b323c;border-radius:4px;padding:9px 14px;cursor:pointer">Next moment</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ===================== REPORT ===================== -->
+<div data-screen-label="1a Full-time report" style="width:1440px;background:#0a0c0f;border:1px solid #20262e;display:flex;flex-direction:column">
+  <header style="height:48px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:#0f1216;border-bottom:1px solid #20262e">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:22px;height:22px;border-radius:4px;background:#5b9cf5;color:#07111f;display:grid;place-items:center;font-size:10px;font-weight:700">GR</div>
+      <span style="font-size:13px;font-weight:600">Ghost Replay</span>
+      <span style="width:1px;height:16px;background:#2b323c"></span>
+      <span style="font-size:12px;color:#a3aab4">Match Intelligence</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#747d89;margin-left:16px">
+      <span>Matches</span><span>/</span><span>Seed 7</span><span>/</span><span style="color:#a3aab4">Full-time report</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:8px">
+      <button style="font:inherit;font-size:12px;color:#e6e8eb;background:#1a1f26;border:1px solid #2b323c;border-radius:4px;padding:6px 12px;cursor:pointer">Export report JSON</button>
+      <button style="font:inherit;font-size:12px;color:#e6e8eb;background:#1a1f26;border:1px solid #2b323c;border-radius:4px;padding:6px 12px;cursor:pointer">Export overlay cues</button>
+      <button style="font:inherit;font-size:12px;color:#a3aab4;background:transparent;border:1px solid transparent;border-radius:4px;padding:6px 10px;cursor:pointer">Back to match</button>
+    </div>
+  </header>
+
+  <div style="padding:28px 32px 36px;display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#8bb9f8">FULL-TIME REPORT</span>
+        <div style="display:flex;align-items:center;gap:18px">
+          <span style="display:flex;align-items:center;gap:10px;font-size:22px;font-weight:600"><span style="width:3px;height:26px;background:#c8102e"></span>Northbridge Albion</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;padding:0 14px;border:1px solid #2b323c;border-radius:4px">2<span style="color:#747d89;font-weight:400;margin:0 10px">–</span>1</span>
+          <span style="display:flex;align-items:center;gap:10px;font-size:22px;font-weight:600">Kestrel Vale<span style="width:3px;height:26px;background:#1d428a"></span></span>
+        </div>
+      </div>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#747d89">Seed 7 · 90:00+ · 1,014 events · 6 ghost moments</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:24px;padding:18px 20px;background:#0f1216;border:1px solid #20262e;border-radius:4px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">MATCH SUMMARY</span>
+        <span style="font-size:11px;color:#8bb9f8">Generated by Azure OpenAI from engine facts</span>
+      </div>
+      <p style="margin:0;font-size:15px;line-height:1.6;max-width:880px;text-wrap:pretty">{{ d.report.story }}</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #20262e;border-radius:4px;background:#0f1216">
+      <sc-for list="{{ d.report.kpis }}" as="k" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:10px;padding:16px 18px;border-right:1px solid #20262e">
+          <span style="font-size:11.5px;color:#a3aab4">{{ k.label }}</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600"><span>{{ k.h }}</span><span style="color:#a3aab4">{{ k.a }}</span></div>
+          <div style="display:flex;gap:2px;height:3px"><div style="width:{{ k.hp }};background:#c8102e"></div><div style="width:{{ k.ap }};background:#3561b5"></div></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,7fr) minmax(0,6fr);gap:20px">
+      <section style="display:flex;flex-direction:column;gap:14px;padding:18px 20px;background:#0f1216;border:1px solid #20262e;border-radius:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">MOMENTUM · xT PER 5 MIN</span>
+          <div style="display:flex;gap:14px;font-size:11.5px;color:#a3aab4">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#c8102e"></span>NBA</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#3561b5"></span>KVL</span>
+          </div>
+        </div>
+        <div style="position:relative;height:200px;display:flex;gap:4px">
+          <div style="position:absolute;left:0;right:0;top:50%;height:1px;background:#2b323c"></div>
+          <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#20262e"></div>
+          <sc-for list="{{ d.report.momentum }}" as="b" hint-placeholder-count="18">
+            <div style="flex:1;display:flex;flex-direction:column">
+              <div style="height:50%;display:flex;align-items:flex-end"><div style="width:100%;height:{{ b.up }};background:#c8102e;opacity:.9"></div></div>
+              <div style="height:50%;display:flex;align-items:flex-start"><div style="width:100%;height:{{ b.down }};background:#3561b5;opacity:.9"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="position:relative;height:20px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a3aab4">
+          <sc-for list="{{ goals }}" as="g" hint-placeholder-count="3">
+            <span style="position:absolute;left:{{ g.left }};transform:translateX(-50%);display:flex;align-items:center;gap:5px;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#e0b44a"></span>{{ g.label }}</span>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#747d89"><span>0'</span><span>HT</span><span>90'</span></div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;padding:18px 20px 8px;background:#0f1216;border:1px solid #20262e;border-radius:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px">
+          <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">THE DECISIONS THAT SHAPED THE MATCH</span>
+          <span style="font-size:11px;color:#747d89">EV lost</span>
+        </div>
+        <sc-for list="{{ moments }}" as="m" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:34px 3px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #20262e;font-size:13px;line-height:1.4">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#747d89">{{ m.min }}</span>
+            <span style="height:20px;background:{{ m.c }}"></span>
+            <span style="color:#a3aab4"><b style="color:#e6e8eb;font-weight:600">{{ m.player }}</b> {{ m.text }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#8bb9f8">{{ m.ev }}</span>
+            <span style="font-size:12px;color:#747d89">Replay</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">STANDOUT PERFORMERS</span>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+        <sc-for list="{{ perf }}" as="p" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px;background:#0f1216;border:1px solid #20262e;border-top:2px solid {{ p.c }};border-radius:4px">
+            <div style="display:flex;justify-content:space-between;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:{{ p.tagc }}">{{ p.tag }}</span>
+                <span style="font-size:16px;font-weight:600">{{ p.name }} <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a3aab4;background:#1f252d;padding:1px 5px;border-radius:3px;vertical-align:2px">{{ p.role }}</span></span>
+                <span style="font-size:12px;color:#747d89">{{ p.club }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;line-height:1;color:{{ p.rc }}">{{ p.rating }}</span>
+                <span style="font-size:10px;color:#747d89;letter-spacing:.08em;margin-top:4px">RATING</span>
+              </div>
+            </div>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:#a3aab4;text-wrap:pretty">{{ p.line }}</p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px;padding:12px 0;border-top:1px solid #20262e;border-bottom:1px solid #20262e">
+              <sc-for list="{{ p.stats }}" as="s" hint-placeholder-count="8">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500">{{ s.0 }}</span><span style="font-size:10.5px;color:#747d89">{{ s.1 }}</span></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:#a3aab4"><span>Decision score</span><span style="font-family:'IBM Plex Mono',monospace;color:#e6e8eb">{{ p.dec }} · {{ p.decPct }}</span></div>
+              <div style="height:3px;background:#1f252d"><div style="height:100%;width:{{ p.decPct }};background:#a48cf0"></div></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;background:#0f1216;border:1px solid #20262e;border-radius:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px">
+        <span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#747d89">ALL PLAYERS</span>
+        <span style="font-size:12px;color:#747d89">Sorted by rating · 22 players</span>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,2.2fr) repeat(9,minmax(0,1fr));padding:8px 18px;border-top:1px solid #20262e;border-bottom:1px solid #2b323c;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:#747d89;text-align:right">
+        <span style="text-align:left">PLAYER</span><span>RATING</span><span>G</span><span>A</span><span>xG</span><span>CHANCES</span><span>BALL WINS</span><span>PASS %</span><span>DECISIONS</span><span>KM</span>
+      </div>
+      <sc-for list="{{ table }}" as="r" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:minmax(0,2.2fr) repeat(9,minmax(0,1fr));padding:9px 18px;border-bottom:1px solid #20262e;font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:right">
+          <span style="display:flex;align-items:center;gap:8px;text-align:left;font-family:'IBM Plex Sans',sans-serif;font-size:13px"><span style="width:3px;height:14px;background:{{ r.c }}"></span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a3aab4;width:26px">{{ r.role }}</span>{{ r.name }}</span>
+          <span style="font-weight:600">{{ r.rating }}</span><span>{{ r.g }}</span><span>{{ r.a }}</span><span>{{ r.xg }}</span><span>{{ r.ch }}</span><span>{{ r.bw }}</span><span>{{ r.pass }}</span><span>{{ r.dec }}</span><span style="color:#a3aab4">{{ r.km }}</span>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:2600}}">
+class Component extends DCLogic {
+  state = { d: null, fn: null };
+  componentDidMount() {
+    Promise.all([import('./ghost-data.js'), import('./pitch.js')]).then(([a, b]) => this.setState({ d: a.default, fn: b.pitchSvg }));
+  }
+  renderVals() {
+    const d = this.state.d;
+    if (!d) return {};
+    const T = { id: 'dk', grass: '#0d1712', grass2: '#101c16', line: 'rgba(225,235,230,.45)', home: d.home.color, away: '#2f5bb0', ghost: '#5b9cf5', actual: '#ef7a6b', alt: '#8b95a3', ring: 'rgba(255,255,255,.8)', labelBg: 'rgba(10,12,15,.92)', labelLine: '#2b323c', labelFg: '#e6e8eb', text: '#e6e8eb', font: 'IBM Plex Sans' };
+    const team = (s) => (s === 'h' ? d.home.color : '#3561b5');
+    return {
+      d,
+      pitch: this.state.fn ? this.state.fn(React, d, T) : null,
+      markers: d.markers.map((m) => ({ ...m, bg: m.kind === 'goal' ? '#e0b44a' : '#5b9cf5', rad: m.kind === 'goal' ? '50%' : '1px', rot: m.kind === 'goal' ? '0deg' : '45deg' })),
+      factors: d.moment.factors.slice(0, 2).map((f) => ({ ...f, c: f.kind === 'ghost' ? T.ghost : T.actual })),
+      moments: d.report.moments.map((m) => ({ ...m, c: team(m.team) })),
+      goals: d.report.goals,
+      perf: d.report.performers.map((p) => ({ ...p, c: p.potm ? '#e0b44a' : team(p.team), tagc: p.potm ? '#e0b44a' : '#747d89', rc: p.potm ? '#e0b44a' : '#e6e8eb' })),
+      table: d.report.table.map((r) => ({ ...r, c: team(r.team) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
