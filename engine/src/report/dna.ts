@@ -109,6 +109,8 @@ function styleOf(traits: DnaTrait[]): string {
   const t = Object.fromEntries(traits.map((x) => [x.key, x.value])) as Record<DnaTraitKey, number>;
   if (t.vision >= 75 && t.quality >= 60) return 'Visionary playmaker';
   if (t.risk >= 70 && t.progression >= 65) return 'Progressive risk-taker';
+  if (t.risk >= 85 && t.quality <= 30) return 'Speculative risk-taker';
+  if (t.risk >= 85) return 'Risk-taker';
   if (t.unpredictable >= 75 && t.quality >= 50) return 'Unpredictable creator';
   if (t.unpredictable >= 75) return 'Off-script gambler';
   if (t.composure >= 75) return 'Cool under pressure';

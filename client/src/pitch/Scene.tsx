@@ -344,9 +344,9 @@ function CameraRig() {
   return null;
 }
 
-/** Orbit / pan / zoom, only while a ghost moment is open. */
+/** Orbit / pan / zoom, only while a ghost moment is open (and not while a pundit is drawing on the pitch). */
 function FreeLook() {
-  const frozen = useMatch((s) => !!s.ghost);
+  const frozen = useMatch((s) => !!s.ghost && !s.sketching);
   return (
     <OrbitControls
       makeDefault

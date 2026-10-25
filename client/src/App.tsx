@@ -121,6 +121,7 @@ export function App() {
   const error = useMatch((s) => s.error);
   const reportOpen = useMatch((s) => s.reportOpen);
   const frozen = useMatch((s) => !!s.ghost);
+  const sketching = useMatch((s) => s.sketching);
   if (!meta || status === 'idle' || status === 'connecting' || (status === 'error' && !meta)) return <StartScreen />;
   return (
     <div className="app">
@@ -135,7 +136,7 @@ export function App() {
           <section className="stage">
             <StageHeader />
             <div className="canvas-wrap">
-              <div className={`canvas-inner${frozen ? " free" : ""}`}>
+              <div className={`canvas-inner${frozen ? " free" : ""}${sketching ? " sketching" : ""}`}>
                 <PitchScene />
                 <GoalBanner />
                 <LowerThird />

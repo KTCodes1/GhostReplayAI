@@ -18,12 +18,19 @@ import {
   type Side,
   type StatsSnapshot,
   type WhatIfResult,
+  type DecisionDNA,
+  type SketchVerdict,
+  type Vec2,
+  type VoteTally,
   optionKey,
 } from '@ghost/engine';
 import { create } from 'zustand';
 import { Timeline, type View } from './timeline';
 
-export type TickerItem = { id: string; clockMs: number; team?: Side; text: string; kind: 'goal' | 'shot' | 'ghost' | 'info' | 'foul' | 'studio'; source?: AiSource };
+export type TickerItem = { id: string; clockMs: number; team?: Side; text: string; kind: 'goal' | 'shot' | 'ghost' | 'genius' | 'info' | 'foul' | 'studio'; source?: AiSource };
+/** A pundit's drawn option for a moment, scored and simulated by the engine. */
+export type SketchResult = { verdict: SketchVerdict; whatif: WhatIfResult; note?: { text: string; source: AiSource } };
+export type Role = 'fan' | 'coach';
 export type AiSource = 'gemini' | 'azure' | 'template';
 /** What the viewer picked. Favourite club is stored by club id (it maps to home/away per match). */
 /** Viewer settings: who they're following (player focus). Per match, so not remembered. */
@@ -84,6 +91,18 @@ type State = {
   cues: OverlayCue[];
   /** What this match was started with, so the full cue sheet can be fetched. */
   matchParams?: { seed: number; home?: string; away?: string };
+  /** "You're the player": pick the option before the reveal. Remembered across matches. */
+  predictMode: boolean;
+  role: Role;
+  /** The viewer's pick per moment, and everyone's picks once they've voted. */
+  myVotes: Record<string, string>;
+  votes: Record<string, { tally: VoteTally; total: number }>;
+  /** Pundit sketch: drawing mode, and the scored sketches per moment. */
+  sketching: boolean;
+  sketches: Record<string, SketchResult[]>;
+  /** Decision DNA by player (this match, and across their last five). */
+  dna: Record<string, { match: DecisionDNA | null; across: DecisionDNA | null }>;
+  dnaPending: string[];
 };
 
 type Actions = {
@@ -102,6 +121,13 @@ type Actions = {
   openReport: () => void;
   closeReport: () => void;
   openMomentFromReport: (m: DecisionMoment) => void;
+  setPredictMode: (on: boolean) => void;
+  setRole: (r: Role) => void;
+  vote: (key: string) => void;
+  setSketching: (on: boolean) => void;
+  /** Score an option drawn from the ball to `end` (absolute pitch metres). */
+  sketchAt: (end: Vec2) => void;
+  requestDna: (playerId: string) => void;
 };
 
 /** Mutable playback data read by the render loop. */
@@ -127,7 +153,7 @@ let lastNow = 0;
  * Everything a new match starts from. Every field must be listed — optional ones as `undefined` —
  * because zustand merges: anything left out would survive from the previous match (e.g. a frozen ghost).
  */
-type ResetKeys = keyof Omit<State, 'camera' | 'speed' | 'prefs'>;
+type ResetKeys = keyof Omit<State, 'camera' | 'speed' | 'prefs' | 'predictMode' | 'role'>;
 type MatchReset = { [K in ResetKeys]: undefined extends State[K] ? State[K] | undefined : State[K] };
 
 const initial = (): MatchReset => ({
@@ -163,7 +189,30 @@ const initial = (): MatchReset => ({
   returnToReport: false,
   pausedForReport: false,
   cues: [],
+  myVotes: {},
+  votes: {},
+  sketching: false,
+  sketches: {},
+  dna: {},
+  dnaPending: [],
 });
+
+const VIEWER_KEY = 'ghost-replay.viewer';
+function loadViewer(): { predictMode: boolean; role: Role } {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEWER_KEY) ?? '{}') as { predictMode?: boolean; role?: Role };
+    return { predictMode: !!v.predictMode, role: v.role === 'coach' ? 'coach' : 'fan' };
+  } catch {
+    return { predictMode: false, role: 'fan' };
+  }
+}
+function saveViewer(v: { predictMode: boolean; role: Role }) {
+  try {
+    localStorage.setItem(VIEWER_KEY, JSON.stringify(v));
+  } catch {
+    /* private mode: not remembered */
+  }
+}
 
 function resetPlayback() {
   playback.live = new Timeline();
@@ -325,7 +374,12 @@ export const useMatch = create<State & Actions>((set, get) => {
           apply: (s) => ({
             fastForward: false,
             moments: [...s.moments, moment],
-            ticker: [{ id: `g-${moment.eventId}`, clockMs: moment.clockMs, team: moment.team, kind: 'ghost' as const, text: `Ghost moment: ${playerName(moment.playerId)}` }, ...s.ticker].slice(0, 40),
+            ticker: [
+              moment.kind === 'genius'
+                ? { id: `g-${moment.eventId}`, clockMs: moment.clockMs, team: moment.team, kind: 'genius' as const, text: `Genius: ${playerName(moment.playerId)} found it` }
+                : { id: `g-${moment.eventId}`, clockMs: moment.clockMs, team: moment.team, kind: 'ghost' as const, text: `Ghost moment: ${playerName(moment.playerId)}` },
+              ...s.ticker,
+            ].slice(0, 40),
           }),
         });
         pending.push({ pt, ghost: { moment, event, pt, live: true, holdMs: msg.holdMs } });
@@ -407,6 +461,27 @@ export const useMatch = create<State & Actions>((set, get) => {
       case 'report_lines':
         set({ reportLines: { lines: msg.lines, source: msg.source } });
         break;
+      case 'votes':
+        set({ votes: { ...get().votes, [msg.eventId]: { tally: msg.tally, total: msg.total } } });
+        break;
+      case 'sketch': {
+        const list = get().sketches[msg.eventId] ?? [];
+        const g = get().ghost;
+        set({
+          sketches: { ...get().sketches, [msg.eventId]: [...list.filter((x) => x.whatif.key !== msg.whatif.key), { verdict: msg.verdict, whatif: msg.whatif }] },
+          // The simulation comes with it, so the sketch can be played on the pitch straight away.
+          ...(g && g.moment.eventId === msg.eventId ? { whatIf: { ...get().whatIf, [msg.whatif.key]: msg.whatif } } : {}),
+        });
+        break;
+      }
+      case 'sketch_note': {
+        const list = get().sketches[msg.eventId] ?? [];
+        set({ sketches: { ...get().sketches, [msg.eventId]: list.map((x) => (x.whatif.key === msg.key ? { ...x, note: { text: msg.text, source: msg.source } } : x)) } });
+        break;
+      }
+      case 'dna':
+        set({ dna: { ...get().dna, [msg.playerId]: { match: msg.match, across: msg.across } }, dnaPending: get().dnaPending.filter((x) => x !== msg.playerId) });
+        break;
       case 'error':
         set({ status: 'error', error: msg.message });
         break;
@@ -415,6 +490,7 @@ export const useMatch = create<State & Actions>((set, get) => {
 
   return {
     ...initial(),
+    ...loadViewer(),
     speed: 8,
     camera: 'broadcast',
     prefs: {},
@@ -479,7 +555,7 @@ export const useMatch = create<State & Actions>((set, get) => {
     closeGhost: () => {
       const g = get().ghost;
       playback.whatIf = undefined;
-      set({ ghost: undefined, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false });
+      set({ ghost: undefined, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false, sketching: false });
       if (!g) return;
       if (get().returnToReport) {
         set({ returnToReport: false, reportOpen: true });
@@ -531,6 +607,37 @@ export const useMatch = create<State & Actions>((set, get) => {
     openMomentFromReport: (m) => {
       set({ reportOpen: false, returnToReport: true });
       get().showMoment(m);
+    },
+    setPredictMode: (on) => {
+      set({ predictMode: on });
+      saveViewer({ predictMode: on, role: get().role });
+    },
+    setRole: (role) => {
+      set({ role });
+      saveViewer({ predictMode: get().predictMode, role });
+    },
+    vote: (key) => {
+      const g = get().ghost;
+      if (!g || get().myVotes[g.moment.eventId]) return;
+      set({ myVotes: { ...get().myVotes, [g.moment.eventId]: key } });
+      get().send({ cmd: 'vote', eventId: g.moment.eventId, key, role: get().role });
+    },
+    setSketching: (on) => {
+      if (on && get().whatIfPlaying) get().stopWhatIf();
+      set({ sketching: on });
+    },
+    sketchAt: (end) => {
+      const g = get().ghost;
+      if (!g) return;
+      // The engine works in the acting team's frame.
+      const tf = g.moment.team === 'home' ? end : { x: 105 - end.x, y: 68 - end.y };
+      set({ sketching: false });
+      get().send({ cmd: 'sketch', eventId: g.moment.eventId, end: tf });
+    },
+    requestDna: (playerId) => {
+      if (get().dnaPending.includes(playerId)) return;
+      set({ dnaPending: [...get().dnaPending, playerId] });
+      get().send({ cmd: 'dna', playerId });
     },
     setPrefs: (patch) => {
       const prefs: ClientPrefs = { ...get().prefs, ...patch };

@@ -1,10 +1,11 @@
 // Post-match (or so-far) report, as a full page: story, key numbers, momentum, the decisions that
 // shaped it, standout players and the full player table.
 
-import type { MatchMeta, PlayerReport, Side } from '@ghost/engine';
+import type { MatchMeta, MatchReport, PlayerReport, Side } from '@ghost/engine';
 import { useMatch } from '../store';
 import { cueSheet } from './Broadcast';
 import { choicePhrase, clock, downloadJSON, minute, optionPhrase, pct, providerName, signed, teamColor } from './format';
+import { DnaView } from './Dna';
 import { MomentumChart } from './MomentumChart';
 import { AiBadge, Split } from './Panels';
 
@@ -97,6 +98,12 @@ function PlayerCard({ p, meta, variant }: { p: PlayerReport; meta: MatchMeta; va
           </div>
         </div>
       )}
+      {p.dna && (
+        <div className="pcard-dna">
+          <span className="eyebrow">Decision DNA</span>
+          <DnaView dna={p.dna} compact />
+        </div>
+      )}
       {p.bestMoment && (
         <div className="pm">
           <span>
@@ -113,6 +120,71 @@ function PlayerCard({ p, meta, variant }: { p: PlayerReport; meta: MatchMeta; va
         </button>
       )}
     </div>
+  );
+}
+
+/** The what-if scoreline: the headline numbers, side by side. */
+function WhatIfPanel({ report, meta }: { report: MatchReport; meta: MatchMeta }) {
+  const w = report.whatIfScore;
+  const row = (label: string, h: string, a: string, hint: string, strong?: boolean) => (
+    <div className={`wi-row${strong ? ' strong' : ''}`}>
+      <span className="wi-label">
+        {label}
+        <small>{hint}</small>
+      </span>
+      <span className="wi-score mono">
+        {h}
+        <span>–</span>
+        {a}
+      </span>
+    </div>
+  );
+  return (
+    <section className="panel rp-panel">
+      <div className="rp-panel-head">
+        <span className="eyebrow">The what-if scoreline</span>
+        <small>
+          {meta.home.shortName} – {meta.away.shortName}
+        </small>
+      </div>
+      {row('Final score', String(w.goals.home), String(w.goals.away), 'what happened')}
+      {row('Expected goals', w.xg.home.toFixed(2), w.xg.away.toFixed(2), 'the quality of chances created')}
+      {row('With the best decisions', w.bestDecisions.home.toFixed(2), w.bestDecisions.away.toFixed(2), 'expected goals if each attack had taken its best option', true)}
+      <p className="gp-note">
+        A model estimate: in every attack, the biggest clear improvement the ghost engine found (an option the player could see, worth 0.03 or more) is added once.{' '}
+        {w.improvedAttacks.home} of {w.attacks.home} {meta.home.shortName} attacks and {w.improvedAttacks.away} of {w.attacks.away} {meta.away.shortName} attacks had one.
+      </p>
+    </section>
+  );
+}
+
+/** How much to trust the engine: the simulation check, and people's picks in "You're the player". */
+function ValidationPanel({ report }: { report: MatchReport }) {
+  const v = report.validation;
+  const votes = v.votes;
+  const tile = (value: string, label: string, detail: string) => (
+    <div className="val-tile">
+      <b className="mono">{value}</b>
+      <span>{label}</span>
+      <small>{detail}</small>
+    </div>
+  );
+  return (
+    <section className="panel rp-panel">
+      <div className="rp-panel-head">
+        <span className="eyebrow">Validation</span>
+        <small>How much to trust the picks</small>
+      </div>
+      <div className="val-grid">
+        {tile(v.simChecked ? pct(v.simAgreed / v.simChecked) : '–', 'Simulation upheld the model', `${v.simAgreed} of ${v.simChecked} flagged moments survived 50 runs with defenders reacting`)}
+        {tile(
+          votes?.agreeFans != null ? pct(votes.agreeFans) : '–',
+          'Fans agreed with the model',
+          votes && votes.votes - votes.coachVotes > 0 ? `most popular pick matched on ${votes.moments} voted moments` : "no votes yet: turn on You're the player",
+        )}
+        {tile(votes?.agreeCoaches != null ? pct(votes.agreeCoaches) : '–', 'Coaches and players agreed', votes?.coachVotes ? `${votes.coachVotes} votes from people who coach or play` : 'no coach votes yet')}
+      </div>
+    </section>
   );
 }
 
@@ -212,11 +284,39 @@ export function ReportScreen() {
                 <span>
                   <b>{name(m.playerId)}</b> chose {choicePhrase(m.actual, name)} when {optionPhrase(m.ghost, name)} was on
                 </span>
-                <span className="delta">{signed(m.evLost)}</span>
+                <span className="delta">
+                  {signed(m.evLost)}
+                  {m.confidence && <small className={`conf ${m.confidence.level}`}>{m.confidence.level}</small>}
+                </span>
                 <span className="go">Replay</span>
               </button>
             ))}
           </section>
+        </div>
+
+        {report.genius.length > 0 && (
+          <section className="panel rp-panel rp-moments genius">
+            <div className="rp-panel-head">
+              <span className="eyebrow">Moments of genius · what they saw that others didn't</span>
+              <small>Threat over the obvious ball</small>
+            </div>
+            {report.genius.map((m) => (
+              <button key={m.eventId} className="moment-row" onClick={() => openMomentFromReport(m)}>
+                <span className="tl-min">{minute(m.clockMs)}</span>
+                <i style={{ background: teamColor(meta, m.team) }} />
+                <span>
+                  <b>{name(m.playerId)}</b> found {optionPhrase(m.actual, name)} when most would have played {optionPhrase(m.ghost, name)}
+                </span>
+                <span className="delta genius">{signed(m.evGained ?? 0)}</span>
+                <span className="go">Replay</span>
+              </button>
+            ))}
+          </section>
+        )}
+
+        <div className="rp-two">
+          <WhatIfPanel report={report} meta={meta} />
+          <ValidationPanel report={report} />
         </div>
 
         {shown.length > 0 && (

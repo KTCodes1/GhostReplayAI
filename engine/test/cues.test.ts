@@ -31,8 +31,9 @@ describe('overlay cue sheet', () => {
     const replays = sheet.cues.filter((c) => c.kind === 'ghost_replay');
     expect(replays).toHaveLength(live.length);
     for (const r of replays) {
-      const p = r.payload as { arrows: { kind: string; from: { x: number; y: number }; to: { x: number; y: number } }[]; freezeFrame: unknown[] };
-      expect(p.arrows.map((a) => a.kind)).toEqual(expect.arrayContaining(['actual', 'ghost']));
+      const p = r.payload as { momentKind: string; arrows: { kind: string; from: { x: number; y: number }; to: { x: number; y: number } }[]; freezeFrame: unknown[] };
+      // A miss shows the better option; a genius moment shows the obvious one they didn't take.
+      expect(p.arrows.map((a) => a.kind)).toEqual(expect.arrayContaining(['actual', p.momentKind === 'genius' ? 'obvious' : 'ghost']));
       expect(p.freezeFrame).toHaveLength(22);
       for (const a of p.arrows) for (const pt of [a.from, a.to]) {
         expect(pt.x).toBeGreaterThanOrEqual(0);

@@ -128,6 +128,8 @@ const MAX_RUN_SPEED = 7;
 const ACCEL = 4.5; // m/s²
 const REACH = 0.9; // metres
 const CLEAN_CUT = 0.75;
+/** Where along a ground pass a defender can step in (fractions of its length), then the race at the target (1). */
+const LANE_SAMPLES = [...Array.from({ length: 16 }, (_, i) => 0.1 + i * 0.05), 1];
 /** Distance covered in `sec` seconds from a standing start, accelerating up to `vmax`. */
 const runCover = (sec: number, vmax: number) => {
   if (sec <= 0) return 0;
@@ -471,10 +473,11 @@ export function createSimulation(cfg: SimConfig) {
       const react = clamp(rng.normal(0.3, 0.08), 0.12, 0.55);
       const vmax = (6 + 1.8 * d.info.attrs.pace) * clamp(rng.normal(1, 0.06), 0.85, 1.15);
       const from = add(d.pos, scale(d.vel, Math.min(react, T)));
-      for (let u = lofted ? 0.85 : 0.1; u <= 1.0001; u += 0.05) {
+      // In flight (ground passes only) a defender can step into the lane; at the end it's a race with the receiver.
+      for (const u of lofted ? [1] : LANE_SAMPLES) {
         if (best && u >= best.u) break;
-        const at = lerpV(startAbs, endAbs, Math.min(1, u));
-        if (u < 0.999) {
+        const at = lerpV(startAbs, endAbs, u);
+        if (u < 1) {
           if (dist(from, at) <= runCover(u * T - react, vmax) + REACH && rng.chance(CLEAN_CUT)) {
             best = { p: d, at, u };
             break;

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useMatch } from '../store';
 import { BroadcastTab } from './Broadcast';
 import { minute, pct, teamColor } from './format';
+import { DnaView } from './Dna';
 import { StatsTab, TimelineTab } from './Panels';
 
 type Tab = 'stats' | 'timeline' | 'player' | 'feed';
@@ -115,6 +116,8 @@ function PlayerTab() {
             </tbody>
           </table>
 
+          <DnaSection playerId={p.id} />
+
           {moments.length > 0 && (
             <div className="tl-list">
               <span className="eyebrow">Their ghost moments</span>
@@ -133,6 +136,46 @@ function PlayerTab() {
         </div>
       )}
     </>
+  );
+}
+
+/** Decision DNA for the followed player: this match so far, or across their last five matches. */
+function DnaSection({ playerId }: { playerId: string }) {
+  const dna = useMatch((s) => s.dna[playerId]);
+  const pending = useMatch((s) => s.dnaPending.includes(playerId));
+  const requestDna = useMatch((s) => s.requestDna);
+  const [scope, setScope] = useState<'match' | 'across'>('across');
+  const shown = dna?.[scope] ?? null;
+  return (
+    <div className="dna-section">
+      <div className="gp-section-head">
+        <span className="eyebrow">Decision DNA</span>
+        {dna && (
+          <div className="seg" role="group" aria-label="DNA scope">
+            <button className={scope === 'match' ? 'on' : ''} onClick={() => setScope('match')}>
+              This match
+            </button>
+            <button className={scope === 'across' ? 'on' : ''} onClick={() => setScope('across')}>
+              Last 5
+            </button>
+          </div>
+        )}
+      </div>
+      {!dna ? (
+        <button onClick={() => requestDna(playerId)} disabled={pending} title="How this player makes decisions: risk, vision, composure, late-game, against their peers">
+          {pending ? 'Building from 5 matches…' : 'Build Decision DNA'}
+        </button>
+      ) : shown ? (
+        <DnaView dna={shown} compact />
+      ) : (
+        <div className="empty">Not enough decisions yet {scope === 'match' ? 'this match' : ''} (20 needed).</div>
+      )}
+      {dna && (
+        <button className="link" onClick={() => requestDna(playerId)} disabled={pending}>
+          {pending ? 'Updating…' : 'Update'}
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -62,7 +62,8 @@ export function Header() {
   const meta = useMatch((s) => s.meta)!;
   const reportOpen = useMatch((s) => s.reportOpen);
   const report = useMatch((s) => s.report);
-  const { openReport, disconnect, closeReport } = useMatch.getState();
+  const predictMode = useMatch((s) => s.predictMode);
+  const { openReport, disconnect, closeReport, setPredictMode } = useMatch.getState();
   return (
     <header className="header">
       <Brand />
@@ -87,6 +88,14 @@ export function Header() {
           </>
         ) : (
           <>
+            <button
+              className={predictMode ? 'btn-ai' : 'btn-quiet'}
+              aria-pressed={predictMode}
+              onClick={() => setPredictMode(!predictMode)}
+              title="At each frozen moment, pick what you'd do before the engine reveals its answer"
+            >
+              You're the player{predictMode ? ': on' : ''}
+            </button>
             <button onClick={openReport} title="Stats, momentum and player cards">
               Match report
             </button>
@@ -225,7 +234,14 @@ export function Scrubber() {
           <span key={id} className="scr-mark goal" style={{ left: at(ms) }} title={`Goal ${minute(ms)}`} />
         ))}
         {moments.map((m: DecisionMoment) => (
-          <button key={m.eventId} className="scr-mark ghost" style={{ left: at(m.clockMs) }} onClick={() => show(m)} title={`Ghost moment ${minute(m.clockMs)}: open`} aria-label={`Open ghost moment at ${minute(m.clockMs)}`} />
+          <button
+            key={m.eventId}
+            className={`scr-mark ${m.kind === 'genius' ? 'genius' : 'ghost'}`}
+            style={{ left: at(m.clockMs) }}
+            onClick={() => show(m)}
+            title={`${m.kind === 'genius' ? 'Genius' : 'Ghost'} moment ${minute(m.clockMs)}: open`}
+            aria-label={`Open ${m.kind === 'genius' ? 'genius' : 'ghost'} moment at ${minute(m.clockMs)}`}
+          />
         ))}
       </div>
       <span>90'</span>
@@ -233,6 +249,10 @@ export function Scrubber() {
         <span>
           <i className="diamond" />
           Ghost moment
+        </span>
+        <span>
+          <i className="diamond genius" />
+          Genius
         </span>
         <span>
           <i className="goal-dot" />
@@ -320,7 +340,7 @@ export function TimelineTab() {
   return (
     <div className="tl-list">
       {items.map((it) => {
-        const m = it.kind === 'ghost' ? moments.find((x) => `g-${x.eventId}` === it.id) : undefined;
+        const m = it.kind === 'ghost' || it.kind === 'genius' ? moments.find((x) => `g-${x.eventId}` === it.id) : undefined;
         return (
           <div
             key={it.id}
@@ -334,6 +354,7 @@ export function TimelineTab() {
             <span className="tl-team" style={{ background: it.team ? teamColor(meta, it.team) : 'transparent' }} />
             <span className="tl-text">
               {it.kind === 'ghost' && <i className="diamond" />}
+              {it.kind === 'genius' && <i className="diamond genius" />}
               {it.kind === 'goal' && <i className="goal-dot" />}
               {it.kind === 'studio' && <span className="tl-tag">STUDIO</span>}
               <span>{it.text}</span>
@@ -425,8 +446,17 @@ export function EventFooter() {
 /** On the pitch during a ghost moment: how to move the camera, and a way back to the framed shot. */
 export function FreeCamHint() {
   const ghost = useMatch((s) => !!s.ghost);
+  const sketching = useMatch((s) => s.sketching);
   const manual = useFreeCam((s) => s.manual);
+  const setSketching = useMatch((s) => s.setSketching);
   if (!ghost) return null;
+  if (sketching)
+    return (
+      <div className="cam-hint sketch">
+        <span>Click where the ball should go</span>
+        <button onClick={() => setSketching(false)}>Cancel</button>
+      </div>
+    );
   return (
     <div className="cam-hint">
       <span>Drag to rotate · Right-drag to pan · Scroll to zoom</span>
