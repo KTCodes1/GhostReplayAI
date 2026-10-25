@@ -1,8 +1,9 @@
 // Post-match (or so-far) report: match summary, momentum, the decisions that shaped it, and a
 // card per player with stats, a match rating and the decision score only this engine can give.
 
-import type { DecisionDetector } from '../ghost/ghost';
+import type { DecisionDetector, GhostAnalysis } from '../ghost/ghost';
 import { confirmWithSimulation, toDecisionMoment } from '../ghost/ghost';
+import { type DecisionDNA, decisionDNA } from './dna';
 import { toAbsolute } from '../geometry';
 import { LiveStats, type StatsSnapshot, type TeamStats, makeGKLookup } from '../stats/interpret';
 import type { DecisionMoment, GeneratedMatch, MatchEvent, Side, Vec2 } from '../types';
@@ -45,8 +46,32 @@ export type PlayerReport = {
   stats: PlayerMatchStats;
   bestMoment?: ReportMoment;
   missedChance?: DecisionMoment;
+  /** Decision DNA from this match (spotlight players with enough decisions). */
+  dna?: DecisionDNA;
   /** Template one-liner; the server may replace it with AI text. */
   summary: string;
+};
+
+/**
+ * The "what if" scoreline: expected goals if, in every attack, the player at its biggest decision
+ * had made the best call they could see. Per possession we add the largest clear improvement
+ * (≥ MIN_GAIN) the ghost engine found, so one attack is never counted twice. A model estimate.
+ */
+export type WhatIfScore = {
+  goals: { home: number; away: number };
+  xg: { home: number; away: number };
+  bestDecisions: { home: number; away: number };
+  /** How many attacks had a clear better option. */
+  improvedAttacks: { home: number; away: number };
+  attacks: { home: number; away: number };
+};
+
+export type Validation = {
+  /** Model vs simulation: of the moments the model flagged, how many the 50-run simulation upheld. */
+  simChecked: number;
+  simAgreed: number;
+  /** Fans' and coaches' votes in "You're the player" mode (filled in by the server). */
+  votes?: { moments: number; votes: number; agreeFans: number | null; agreeCoaches: number | null; coachVotes: number };
 };
 
 export type MomentumBin = { label: string; period: 1 | 2; home: number; away: number };
@@ -63,7 +88,50 @@ export type MatchReport = {
   playerOfTheMatch?: string;
   highlights: Record<Side, string[]>; // top two per team (POTM excluded)
   players: PlayerReport[]; // everyone, best rating first
+  /** Moments where a player found the hard, right ball. */
+  genius: DecisionMoment[];
+  whatIfScore: WhatIfScore;
+  validation: Validation;
 };
+
+/** Only clear improvements count (about the top 5% of decisions). */
+const MIN_GAIN = 0.03;
+
+export function whatIfScore(events: readonly MatchEvent[], analyses: readonly GhostAnalysis[], xg: { home: number; away: number }): WhatIfScore {
+  // Possessions: a new one starts on a change of team, a turnover or a restart.
+  const possessionOf = new Map<string, number>();
+  let id = 0;
+  let team: Side | undefined;
+  for (const e of events) {
+    if (e.type === 'possession_change' || e.type === 'kickoff' || e.type === 'half_time' || (ON_BALL.has(e.type) && e.team !== team)) id += 1;
+    if (ON_BALL.has(e.type)) team = e.team;
+    possessionOf.set(e.id, id);
+  }
+  const best = new Map<number, { team: Side; gain: number }>();
+  const attacks = { home: new Set<number>(), away: new Set<number>() };
+  for (const a of analyses) {
+    const pid = possessionOf.get(a.event.id);
+    if (pid === undefined) continue;
+    attacks[a.event.team].add(pid);
+    if (a.evLost < MIN_GAIN || a.best === a.actual) continue;
+    const cur = best.get(pid);
+    if (!cur || a.evLost > cur.gain) best.set(pid, { team: a.event.team, gain: a.evLost });
+  }
+  const sum = { home: 0, away: 0 };
+  const improved = { home: 0, away: 0 };
+  for (const { team: t, gain } of best.values()) {
+    sum[t] += gain;
+    improved[t] += 1;
+  }
+  const last = events.at(-1)!;
+  return {
+    goals: { ...last.score },
+    xg: { home: +xg.home.toFixed(2), away: +xg.away.toFixed(2) },
+    bestDecisions: { home: +(xg.home + sum.home).toFixed(2), away: +(xg.away + sum.away).toFixed(2) },
+    improvedAttacks: improved,
+    attacks: { home: attacks.home.size, away: attacks.away.size },
+  };
+}
 
 const BIN_MS = 5 * 60_000;
 const BINS_PER_HALF = 9;
@@ -259,6 +327,8 @@ export function buildMatchReport(match: GeneratedMatch, detector: DecisionDetect
     if (spotlight.has(p.playerId)) {
       const miss = missFor(p.playerId);
       if (miss) p.missedChance = miss;
+      const dna = decisionDNA(p.playerId, p.name, analyses);
+      if (dna) p.dna = dna;
     }
     p.summary = templateSummary(p, isGK(p.playerId));
   }
@@ -275,6 +345,9 @@ export function buildMatchReport(match: GeneratedMatch, detector: DecisionDetect
     ...(potm ? { playerOfTheMatch: potm.playerId } : {}),
     highlights,
     players,
+    genius: detector.geniusRecap(3).filter((m) => m.t <= last.t),
+    whatIfScore: whatIfScore(events, analyses, { home: snap.teams.home.xG, away: snap.teams.away.xG }),
+    validation: { simChecked: detector.simAgreement().checked, simAgreed: detector.simAgreement().agreed },
   };
 }
 

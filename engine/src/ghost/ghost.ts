@@ -1,35 +1,26 @@
 // Ghost engine: re-scores every on-ball decision from its freeze frame, finds the options the
-// player didn't take, and surfaces the moments where real value was left on the table.
+// player didn't take, and surfaces the moments where real value was left on the table — and the
+// moments where a player found something special that most wouldn't have seen.
+//
+// Judging is fair by design (see judge.ts): options are scored on the moving picture, for what this
+// player can execute, in this game state, two steps deep; a player is only blamed for options they
+// could see; and only clear calls freeze the match.
 
 import { clamp, inBox } from '../geometry';
+import { NEUTRAL_STATE, type GameState } from '../models/gamestate';
 import { passDifficulty } from '../models/pass';
-import {
-  type OptionContext,
-  type ScoredOption,
-  enumerateOptions,
-  evaluateCarry,
-  evaluatePass,
-  evaluateShot,
-} from '../options';
-import type {
-  DecisionMoment,
-  DecisionReason,
-  GeneratedMatch,
-  GhostOption,
-  MatchEvent,
-  MatchMeta,
-  PlayerInfo,
-  Side,
-} from '../types';
+import type { VisionCone } from '../models/vision';
+import type { DecisionMoment, DecisionReason, GeneratedMatch, GhostOption, MatchEvent, MatchMeta, Side } from '../types';
+import { contextCauses, geniusCauses, optionCauses } from './causes';
+import { type JudgedOption, type Roster, type RosterEntry, judgeActual, judgeContext, judgeOptions } from './judge';
 import { simulateWhatIf } from './whatif';
 
-export type RosterEntry = { info: PlayerInfo; team: Side; isGK: boolean };
-export type Roster = Map<string, RosterEntry>;
+export { contextFromEvent, type Roster, type RosterEntry } from './judge';
 
 export function buildRoster(meta: MatchMeta): Roster {
   const r: Roster = new Map();
   for (const team of ['home', 'away'] as Side[])
-    for (const info of meta[team].players) r.set(info.id, { info, team, isGK: info.position === 'GK' });
+    for (const info of meta[team].players) r.set(info.id, { info, team, isGK: info.position === 'GK', directness: meta[team].style.directness });
   return r;
 }
 
@@ -40,22 +31,7 @@ export function isJudgeable(e: MatchEvent): boolean {
   return (e.type === 'pass' || e.type === 'carry' || e.type === 'shot') && !SKIP_CONTEXTS.has(e.context ?? '');
 }
 
-/** Rebuild the option context (attacking frame) from an event's freeze frame. */
-export function contextFromEvent(e: MatchEvent, roster: Roster): OptionContext {
-  const me = roster.get(e.playerId);
-  const toOP = (s: MatchEvent['freezeFrame'][number]) => {
-    const r = roster.get(s.playerId);
-    return { id: s.playerId, pos: s.pos, isGK: r?.isGK ?? false, finishing: r?.info.attrs.finishing, tackling: r?.info.attrs.tackling };
-  };
-  const a = me?.info.attrs;
-  return {
-    carrier: { id: e.playerId, pos: e.start, isGK: me?.isGK ?? false, passing: a?.passing, dribbling: a?.dribbling, pace: a?.pace, finishing: a?.finishing },
-    teammates: e.freezeFrame.filter((s) => s.team === e.team && s.playerId !== e.playerId).map(toOP),
-    opponents: e.freezeFrame.filter((s) => s.team !== e.team).map(toOP),
-  };
-}
-
-const toGhost = (o: ScoredOption, actualEV: number): GhostOption => ({
+export const toGhostOption = (o: JudgedOption, actualEV: number): GhostOption => ({
   action: o.action,
   ...(o.targetPlayerId ? { targetPlayerId: o.targetPlayerId } : {}),
   end: o.end,
@@ -66,19 +42,36 @@ const toGhost = (o: ScoredOption, actualEV: number): GhostOption => ({
   deltaVsActual: o.expectedValue - actualEV,
   ...(o.action === 'pass' ? { difficulty: passDifficulty(o.pSuccess) } : {}),
   features: o.features,
+  visibility: o.visibility,
+  modelP: o.modelP,
+  ...(o.offside ? { offside: true } : {}),
+  ...(o.runner ? { runner: true } : {}),
+  ...(o.execution ? { execution: { fit: o.execution.fit, notes: o.execution.notes } } : {}),
+  ...(o.followUp ? { followUp: o.followUp } : {}),
 });
 
 export type GhostAnalysis = {
   event: MatchEvent;
   actual: GhostOption;
   alternatives: GhostOption[]; // distinct from the actual choice, best first
-  best: GhostOption; // best plausible alternative, or the actual choice if nothing beat it
+  best: GhostOption; // best plausible option the player could see, or the actual choice if nothing beat it
   choseBest: boolean;
   evLost: number;
   zoneWeight: number;
   severity: number;
+  cone: VisionCone;
+  state: GameState;
+  /** A better option existed, but behind the player (not counted against them). */
+  unseen?: GhostOption;
+  /** The best-looking option that turned out to be offside. */
+  offsideBest?: GhostOption;
+  /** Genius check: the option most players would take, and how much more threat the actual choice reached. */
+  obvious?: GhostOption;
+  evGained?: number;
+  geniusScore?: number;
   /** Set once the moment has been checked by simulation: expected goals per attempt. */
   sim?: { actual: number; ghost: number; rollouts: number };
+  confidence?: { level: 'clear' | 'likely' | 'close'; score: number };
 };
 
 /** Options within this EV of the best count as "the right call". */
@@ -88,45 +81,81 @@ export const MIN_PLAUSIBLE_P = 0.45;
 const DRAMA_BOOST = 1.25;
 
 export const isPlausible = (o: GhostOption): boolean => o.action === 'shot' || o.pSuccess >= MIN_PLAUSIBLE_P;
+/** Can a player fairly be blamed for not taking this? It has to be on, seen, and onside. */
+export const isFairGhost = (o: GhostOption): boolean => isPlausible(o) && o.visibility !== 'behind' && !o.offside;
 
-/** Score the actual action and every alternative from the event's freeze frame. */
-export function analyzeEvent(e: MatchEvent, roster: Roster): GhostAnalysis | null {
+/** Genius: the chosen ball must reach at least this much more threat (xT) than the obvious one. */
+const GENIUS_MIN_THREAT = 0.008;
+/** Genius: the choice must be within this of the best expected value (the right call, give or take). */
+const GENIUS_EV_TOLERANCE = 0.01;
+
+/** What a typical, risk-averse player would do (the same utility the simulated players use). */
+const typicalUtility = (o: GhostOption) => o.pSuccess * (o.valueIfSuccess + 0.035) - (1 - o.pSuccess) * o.turnoverCost * 2.5;
+const SUCCESS = new Set(['success', 'goal']);
+
+/** Score the actual action and every alternative from the event's freeze frame. `prev` lets us tell a first touch from a run. */
+export function analyzeEvent(e: MatchEvent, roster: Roster, prev?: MatchEvent): GhostAnalysis | null {
   if (!isJudgeable(e) || (!e.end && e.type !== 'shot')) return null;
   if (roster.get(e.playerId)?.isGK) return null;
-  const ctx = contextFromEvent(e, roster);
-
-  const actualScored =
-    e.type === 'pass' ? evaluatePass(ctx, e.targetPlayerId, e.end!) : e.type === 'carry' ? evaluateCarry(ctx, e.end!) : evaluateShot(ctx);
-  const actualEV = actualScored.expectedValue;
-  const actual = toGhost(actualScored, actualEV);
+  const jc = judgeContext(e, roster, prev);
+  const actualJ = judgeActual(jc, e);
+  const actualEV = actualJ.expectedValue;
+  const actual = toGhostOption(actualJ, actualEV);
 
   // Alternatives: drop the option that *is* the actual choice, keep only the best carry.
   let carryKept = false;
   const alternatives: GhostOption[] = [];
-  for (const o of enumerateOptions(ctx)) {
+  for (const o of judgeOptions(jc)) {
     if (o.action === e.type && (o.action === 'shot' || o.action === 'carry' || o.targetPlayerId === e.targetPlayerId)) continue;
     if (o.action === 'carry') {
       if (carryKept) continue;
       carryKept = true;
     }
-    alternatives.push(toGhost(o, actualEV));
+    alternatives.push(toGhostOption(o, actualEV));
   }
 
-  const top = alternatives.find(isPlausible);
+  const top = alternatives.find(isFairGhost);
   const best = top && top.expectedValue > actual.expectedValue ? top : actual;
   const evLost = Math.max(0, best.expectedValue - actualEV);
   const zoneWeight = zoneWeightFor(e, best);
+  const margin = Math.max(best.expectedValue, actualEV) + 0.01;
+  const unseen = alternatives.find((o) => isPlausible(o) && !o.offside && o.visibility === 'behind' && o.expectedValue > margin);
+  const offsideBest = alternatives.find((o) => o.offside && o.expectedValue > margin);
   // Decisions are judged on EV, not the result — but a "what if" lands harder when it went wrong.
   const drama = e.outcome === 'fail' || e.outcome === 'blocked' || e.outcome === 'off_target' ? DRAMA_BOOST : 1;
+  const choseBest = evLost <= BEST_CHOICE_TOLERANCE;
+
+  // Genius: the right call, it came off, it wasn't the one most players would make, it reached
+  // much more dangerous ground than the obvious ball, and it was hard to find.
+  let genius: Pick<GhostAnalysis, 'obvious' | 'evGained' | 'geniusScore'> = {};
+  if (evLost <= GENIUS_EV_TOLERANCE && actual.action !== 'shot' && SUCCESS.has(e.outcome ?? '')) {
+    const pool = alternatives.filter((o) => isPlausible(o) && o.visibility === 'visible' && !o.offside);
+    const obvious = pool.reduce<GhostOption | undefined>((m, o) => (!m || typicalUtility(o) > typicalUtility(m) ? o : m), undefined);
+    if (obvious && typicalUtility(obvious) > typicalUtility(actual)) {
+      const extraThreat = actual.valueIfSuccess - obvious.valueIfSuccess;
+      const hard =
+        (actual.visibility === 'peripheral' ? 0.6 : actual.visibility === 'behind' ? 1.2 : 0) +
+        ((actual.features?.bypassed ?? 0) >= 3 ? 0.4 : 0) +
+        (actual.runner ? 0.4 : 0) +
+        (actual.pSuccess < 0.75 ? 0.3 : 0);
+      if (extraThreat >= GENIUS_MIN_THREAT && hard > 0) genius = { obvious, evGained: extraThreat, geniusScore: extraThreat * zoneWeightFor(e, actual) * (1 + hard) };
+    }
+  }
+
   return {
     event: e,
     actual,
     alternatives,
     best,
-    choseBest: evLost <= BEST_CHOICE_TOLERANCE,
+    choseBest,
     evLost,
     zoneWeight,
     severity: evLost * zoneWeight * drama,
+    cone: jc.cone,
+    state: jc.state,
+    ...(unseen ? { unseen } : {}),
+    ...(offsideBest ? { offsideBest } : {}),
+    ...genius,
   };
 }
 
@@ -142,8 +171,14 @@ export function zoneWeightFor(e: MatchEvent, best: GhostOption): number {
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 const m1 = (x: number) => `${x.toFixed(1)} m`;
+const MAX_REASONS = 8;
 
-export function reasonsFor(a: GhostAnalysis, roster: Roster): DecisionReason[] {
+export function reasonsFor(a: GhostAnalysis, roster: Roster, kind: DecisionMoment['kind'] = 'miss'): DecisionReason[] {
+  if (kind === 'genius' && a.obvious) {
+    const out = [...geniusCauses(a.actual, a.obvious, a.event, roster), ...optionCauses(a.actual, a.event, roster, 'actual')];
+    if (a.state.code !== 'open') out.push({ code: 'game_state', about: 'context', text: a.state.label });
+    return out.slice(0, MAX_REASONS);
+  }
   const out: DecisionReason[] = [];
   const name = (id?: string) => (id ? roster.get(id)?.info.shortName ?? id : 'a teammate');
   const { actual, best } = a;
@@ -151,6 +186,8 @@ export function reasonsFor(a: GhostAnalysis, roster: Roster): DecisionReason[] {
   const af = actual.features ?? {};
 
   if (best !== actual) {
+    // Causes first: they say *why* the option was on.
+    out.push(...optionCauses(best, a.event, roster, 'best'));
     if (best.action === 'pass') {
       const space = (bf.receiverSpace ?? 0) * 5;
       if ((bf.receiverSpace ?? 0) >= 0.8)
@@ -197,11 +234,15 @@ export function reasonsFor(a: GhostAnalysis, roster: Roster): DecisionReason[] {
   if (actual.action === 'carry' && actual.pSuccess < 0.6) out.push({ code: 'speculative_dribble', about: 'actual', text: `the dribble only had a ${pct(actual.pSuccess)} chance of coming off`, value: actual.pSuccess });
   if (actual.pSuccess < 0.7 && actual.turnoverCost > 0.03) out.push({ code: 'risky_zone', about: 'actual', text: `losing it there handed the opponent a ${pct(actual.turnoverCost)} threat`, value: actual.turnoverCost });
 
-  return out;
+  out.push(...contextCauses({ e: a.event, roster, actual, best, unseen: a.unseen, offsideBest: a.offsideBest, state: a.state }));
+  // Keep the strongest few; the context lines always fit.
+  const ctx = out.filter((r) => r.about === 'context');
+  return [...out.filter((r) => r.about !== 'context').slice(0, MAX_REASONS - ctx.length), ...ctx];
 }
 
-export function toDecisionMoment(a: GhostAnalysis, roster: Roster, maxAlternatives = 5): DecisionMoment {
+export function toDecisionMoment(a: GhostAnalysis, roster: Roster, maxAlternatives = 5, kind: DecisionMoment['kind'] = 'miss'): DecisionMoment {
   const e = a.event;
+  const genius = kind === 'genius' && a.obvious;
   return {
     eventId: e.id,
     t: e.t,
@@ -209,49 +250,106 @@ export function toDecisionMoment(a: GhostAnalysis, roster: Roster, maxAlternativ
     clockMs: e.clockMs,
     team: e.team,
     playerId: e.playerId,
+    kind: genius ? 'genius' : 'miss',
     actual: a.actual,
     ...(e.outcome ? { actualOutcome: e.outcome } : {}),
-    ghost: a.best,
+    ghost: genius ? a.obvious! : a.best,
     alternatives: a.alternatives.slice(0, maxAlternatives),
-    severity: a.severity,
-    evLost: a.evLost,
+    severity: genius ? a.geniusScore ?? 0 : a.severity,
+    evLost: genius ? 0 : a.evLost,
+    ...(genius ? { evGained: a.evGained } : {}),
     zoneWeight: a.zoneWeight,
-    reasons: reasonsFor(a, roster),
+    reasons: reasonsFor(a, roster, genius ? 'genius' : 'miss'),
+    vision: { facing: a.cone.facing, centralDeg: a.cone.centralDeg, peripheralDeg: a.cone.peripheralDeg, basis: a.cone.basis },
+    gameState: { code: a.state.code, label: a.state.label, lossAversion: a.state.lossAversion, riskAppetite: a.state.riskAppetite },
+    ...(a.unseen && !genius ? { unseen: a.unseen } : {}),
     ...(a.sim ? { sim: a.sim } : {}),
+    ...(a.confidence ? { confidence: a.confidence } : {}),
   };
 }
 
-// ---- simulation check -------------------------------------------------------------
+// ---- simulation check + confidence ------------------------------------------------
 
 export const SIM_ROLLOUTS = 50;
 /** The ghost must create at least this much more expected goals in simulation than the actual choice. */
 const SIM_MARGIN = 0.004;
 const SIM_CANDIDATES = 3;
+/** How uncertain the models are, in EV units: a margin this size is about one standard error. */
+const MODEL_SE = 0.025;
+/** The simulation is the stronger evidence. */
+const SIM_WEIGHT = 0.65;
+
+const normalCdf = (z: number) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z ** 3)));
 
 /**
- * Before a moment goes on screen, play the actual choice and the best plausible alternatives
- * out in the match engine. The headline ghost becomes the option that really creates the most
- * danger; if nothing beats what the player did, the moment is dropped. Model and simulation must agree.
+ * How sure are we that the better option really was better? Combines the model's margin with the
+ * simulation's margin (in standard errors of the 50 rollouts). Options on the edge of the player's
+ * vision count for less. Close calls are labelled, never frozen on.
+ */
+export function confidenceOf(evMargin: number, simDiff: number, sdA: number, sdB: number, n: number, visibility?: GhostOption['visibility']): { level: 'clear' | 'likely' | 'close'; score: number } {
+  const se = Math.max(0.004, Math.sqrt((sdA ** 2 + sdB ** 2) / n));
+  let z = SIM_WEIGHT * (simDiff / se) + (1 - SIM_WEIGHT) * (evMargin / MODEL_SE);
+  if (visibility === 'peripheral') z -= 0.6;
+  const score = normalCdf(z);
+  return { level: score >= 0.9 ? 'clear' : score >= 0.7 ? 'likely' : 'close', score: +score.toFixed(3) };
+}
+
+/**
+ * Before a moment goes on screen, play the actual choice and the best fair alternatives out in the
+ * match engine. The headline ghost becomes the option that really creates the most danger; if
+ * nothing beats what the player did, the moment is dropped. Model and simulation must agree.
  */
 export function confirmWithSimulation(a: GhostAnalysis, meta: MatchMeta): GhostAnalysis | null {
-  const candidates = a.alternatives.filter((o) => isPlausible(o) && o.deltaVsActual > BEST_CHOICE_TOLERANCE).slice(0, SIM_CANDIDATES);
+  if (confirmed.has(a)) return confirmed.get(a)!;
+  const r = confirmUncached(a, meta);
+  confirmed.set(a, r);
+  return r;
+}
+
+// Simulations are deterministic, so a decision only ever needs confirming once
+// (the live detector, the recap and the report all ask about the same ones).
+const confirmed = new WeakMap<GhostAnalysis, GhostAnalysis | null>();
+const confirmedGenius = new WeakMap<GhostAnalysis, GhostAnalysis | null>();
+
+function confirmUncached(a: GhostAnalysis, meta: MatchMeta): GhostAnalysis | null {
+  const candidates = a.alternatives.filter((o) => isFairGhost(o) && o.deltaVsActual > BEST_CHOICE_TOLERANCE).slice(0, SIM_CANDIDATES);
   if (!candidates.length) return null;
-  const xg = (o: GhostOption) => simulateWhatIf(meta, a.event, o, { rollouts: SIM_ROLLOUTS }).summary.expectedGoals;
-  const actualXg = xg(a.actual);
+  const run = (o: GhostOption) => simulateWhatIf(meta, a.event, o, { rollouts: SIM_ROLLOUTS }).summary;
+  const actual = run(a.actual);
   let best: GhostOption | undefined;
-  let bestXg = -Infinity;
+  let bestSim: ReturnType<typeof run> | undefined;
   for (const c of candidates) {
-    const v = xg(c);
-    if (v > bestXg) {
-      bestXg = v;
+    const s = run(c);
+    if (!bestSim || s.expectedGoals > bestSim.expectedGoals) {
+      bestSim = s;
       best = c;
     }
   }
-  if (!best || bestXg < actualXg + SIM_MARGIN) return null;
+  if (!best || !bestSim || bestSim.expectedGoals < actual.expectedGoals + SIM_MARGIN) return null;
   const evLost = best.expectedValue - a.actual.expectedValue;
   const zoneWeight = zoneWeightFor(a.event, best);
   const drama = a.severity / Math.max(1e-9, a.evLost * a.zoneWeight);
-  return { ...a, best, evLost, zoneWeight, severity: evLost * zoneWeight * drama, sim: { actual: actualXg, ghost: bestXg, rollouts: SIM_ROLLOUTS } };
+  const confidence = confidenceOf(evLost, bestSim.expectedGoals - actual.expectedGoals, actual.sdXg, bestSim.sdXg, SIM_ROLLOUTS, best.visibility);
+  return { ...a, best, evLost, zoneWeight, severity: evLost * zoneWeight * drama, sim: { actual: actual.expectedGoals, ghost: bestSim.expectedGoals, rollouts: SIM_ROLLOUTS }, confidence };
+}
+
+/** Genius moments must hold up in simulation too: the choice made beats the obvious option. */
+export function confirmGenius(a: GhostAnalysis, meta: MatchMeta): GhostAnalysis | null {
+  if (confirmedGenius.has(a)) return confirmedGenius.get(a)!;
+  const r = confirmGeniusUncached(a, meta);
+  confirmedGenius.set(a, r);
+  return r;
+}
+
+function confirmGeniusUncached(a: GhostAnalysis, meta: MatchMeta): GhostAnalysis | null {
+  if (!a.obvious || !a.evGained) return null;
+  const run = (o: GhostOption) => simulateWhatIf(meta, a.event, o, { rollouts: SIM_ROLLOUTS }).summary;
+  const actual = run(a.actual);
+  const obvious = run(a.obvious);
+  if (actual.expectedGoals < obvious.expectedGoals + SIM_MARGIN) return null;
+  const confidence = confidenceOf(a.evGained, actual.expectedGoals - obvious.expectedGoals, actual.sdXg, obvious.sdXg, SIM_ROLLOUTS);
+  if (confidence.level === 'close') return null;
+  return { ...a, sim: { actual: actual.expectedGoals, ghost: obvious.expectedGoals, rollouts: SIM_ROLLOUTS }, confidence };
 }
 
 // ---- per-player decision record (player focus mode) ------------------------------
@@ -280,8 +378,13 @@ export const DEFAULT_DETECTOR: DetectorOptions = { threshold: 0.035, cooldownMs:
 
 /** Player focus mode: a lower bar, a shorter cooldown and a separate quota for the followed player. */
 const FOCUS = { barFactor: 0.3, cooldownMs: 60_000, maxPerHalf: 6 };
+/** Genius moments: their own bar and quota, so the match isn't only about mistakes. */
+export const GENIUS = { threshold: 0.01, cooldownMs: 90_000, maxPerHalf: 2 };
 /** Never two freezes within this much match time, whoever they're for. */
 const MIN_GAP_ANY_MS = 25_000;
+
+/** How the model compared with the simulation on every moment it checked (validation). */
+export type SimAgreement = { checked: number; agreed: number };
 
 /** Streaming detector: feed events in order; returns a DecisionMoment when one should be shown. */
 export class DecisionDetector {
@@ -293,11 +396,15 @@ export class DecisionDetector {
   private records = new Map<string, PlayerDecisionRecord>();
   private all: GhostAnalysis[] = [];
   private meta: MatchMeta;
+  private prev: MatchEvent | undefined;
   // Player focus mode: the followed player's moments get their own, lower bar and quota.
   private focusId: string | undefined;
   private lastFocusT = -Infinity;
   private focusThisHalf = 0;
   private lastAnyT = -Infinity;
+  private lastGeniusT = -Infinity;
+  private geniusThisHalf = 0;
+  private agreement: SimAgreement = { checked: 0, agreed: 0 };
 
   constructor(meta: MatchMeta, opts: Partial<DetectorOptions> = {}) {
     this.meta = meta;
@@ -315,8 +422,11 @@ export class DecisionDetector {
       this.half = e.period;
       this.shownThisHalf = 0;
       this.focusThisHalf = 0;
+      this.geniusThisHalf = 0;
     }
-    const a = analyzeEvent(e, this.roster);
+    const prev = this.prev;
+    this.prev = e;
+    const a = analyzeEvent(e, this.roster, prev);
     if (!a) return null;
     this.all.push(a);
 
@@ -327,6 +437,12 @@ export class DecisionDetector {
     rec.evCreated += a.actual.expectedValue;
     this.records.set(e.playerId, rec);
 
+    if (e.t - this.lastAnyT < MIN_GAP_ANY_MS) return null;
+    return a.geniusScore !== undefined ? this.tryGenius(a) : this.tryMiss(a);
+  }
+
+  private tryMiss(a: GhostAnalysis): DecisionMoment | null {
+    const e = a.event;
     const { threshold, cooldownMs, maxPerHalf } = this.opts;
     const focus = this.focusId !== undefined && e.playerId === this.focusId;
     // The bar rises as the half's quota fills, so late big moments still get a slot.
@@ -334,9 +450,12 @@ export class DecisionDetector {
     const blocked = focus
       ? e.t - this.lastFocusT < FOCUS.cooldownMs || this.focusThisHalf >= FOCUS.maxPerHalf
       : e.t - this.lastShownT < cooldownMs || this.shownThisHalf >= maxPerHalf;
-    if (a.severity < bar || blocked || e.t - this.lastAnyT < MIN_GAP_ANY_MS) return null;
+    if (a.severity < bar || blocked) return null;
+    this.agreement.checked += 1;
     const confirmed = confirmWithSimulation(a, this.meta);
-    if (!confirmed || confirmed.severity < bar) return null;
+    if (confirmed) this.agreement.agreed += 1;
+    // Close calls are kept for the record but never stop the match.
+    if (!confirmed || confirmed.severity < bar || confirmed.confidence?.level === 'close') return null;
     this.lastAnyT = e.t;
     if (focus) {
       this.lastFocusT = e.t;
@@ -348,6 +467,17 @@ export class DecisionDetector {
     return toDecisionMoment(confirmed, this.roster);
   }
 
+  private tryGenius(a: GhostAnalysis): DecisionMoment | null {
+    const e = a.event;
+    if ((a.geniusScore ?? 0) < GENIUS.threshold || e.t - this.lastGeniusT < GENIUS.cooldownMs || this.geniusThisHalf >= GENIUS.maxPerHalf) return null;
+    const confirmed = confirmGenius(a, this.meta);
+    if (!confirmed) return null;
+    this.lastAnyT = e.t;
+    this.lastGeniusT = e.t;
+    this.geniusThisHalf += 1;
+    return toDecisionMoment(confirmed, this.roster, 5, 'genius');
+  }
+
   playerRecords(): PlayerDecisionRecord[] {
     return [...this.records.values()].map((r) => ({ ...r }));
   }
@@ -357,26 +487,49 @@ export class DecisionDetector {
     return this.all;
   }
 
+  /** Model vs simulation: of the moments the model flagged, how many did the simulation back up? */
+  simAgreement(): SimAgreement {
+    return { ...this.agreement };
+  }
+
   /** The decisions that shaped the match (simulation-checked), for the full-time recap. */
   recap(n = 8): DecisionMoment[] {
     return topDecisions(this.all, this.roster, this.meta, n);
+  }
+
+  /** The best genius moments of the match (simulation-checked). */
+  geniusRecap(n = 3): DecisionMoment[] {
+    return topGenius(this.all, this.roster, this.meta, n);
   }
 }
 
 // ---- offline: the decisions that shaped the match ---------------------------------
 
-/** Top-N simulation-confirmed moments by severity, at least `spacingMs` apart — the full-time recap. */
+/** Top-N simulation-confirmed, non-close-call moments by severity, at least `spacingMs` apart — the full-time recap. */
 export function topDecisions(analyses: readonly GhostAnalysis[], roster: Roster, meta: MatchMeta, n = 8, spacingMs = 60_000): DecisionMoment[] {
   const picked: GhostAnalysis[] = [];
   let tries = 0;
   for (const a of [...analyses].sort((x, y) => y.severity - x.severity)) {
-    if (picked.length >= n || tries >= n * 6) break;
+    if (picked.length >= n || tries >= n * 4) break;
     if (picked.some((p) => Math.abs(p.event.t - a.event.t) < spacingMs)) continue;
     tries += 1;
     const c = confirmWithSimulation(a, meta);
-    if (c) picked.push(c);
+    if (c && c.confidence?.level !== 'close') picked.push(c);
   }
   return picked.sort((x, y) => x.event.t - y.event.t).map((a) => toDecisionMoment(a, roster));
+}
+
+export function topGenius(analyses: readonly GhostAnalysis[], roster: Roster, meta: MatchMeta, n = 3, spacingMs = 60_000): DecisionMoment[] {
+  const picked: GhostAnalysis[] = [];
+  let tries = 0;
+  for (const a of analyses.filter((x) => x.geniusScore !== undefined).sort((x, y) => (y.geniusScore ?? 0) - (x.geniusScore ?? 0))) {
+    if (picked.length >= n || tries >= n * 2) break;
+    if (picked.some((p) => Math.abs(p.event.t - a.event.t) < spacingMs)) continue;
+    tries += 1;
+    const c = confirmGenius(a, meta);
+    if (c) picked.push(c);
+  }
+  return picked.sort((x, y) => x.event.t - y.event.t).map((a) => toDecisionMoment(a, roster, 5, 'genius'));
 }
 
 export function analyzeMatch(match: GeneratedMatch, opts: Partial<DetectorOptions> = {}) {
@@ -388,3 +541,6 @@ export function analyzeMatch(match: GeneratedMatch, opts: Partial<DetectorOption
   }
   return { live, detector: det, recap: det.recap() };
 }
+
+/** For callers that need the default game state (tests, tools). */
+export { NEUTRAL_STATE };

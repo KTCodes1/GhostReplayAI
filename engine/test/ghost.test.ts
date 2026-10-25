@@ -77,7 +77,7 @@ describe('hand-built moment: square pass instead of the free man in the box', ()
     { playerId: hp(10), team: 'home', pos: { x: 84, y: 60 } },
     { playerId: ap(0), team: 'away', pos: { x: 103, y: 34 } },
     { playerId: ap(1), team: 'away', pos: { x: 83, y: 11 } }, // on the winger
-    { playerId: ap(2), team: 'away', pos: { x: 92, y: 40 } },
+    { playerId: ap(2), team: 'away', pos: { x: 97, y: 40 } }, // holds the line, so the striker is onside
     { playerId: ap(3), team: 'away', pos: { x: 92, y: 48 } },
     { playerId: ap(4), team: 'away', pos: { x: 86, y: 60 } },
     { playerId: ap(5), team: 'away', pos: { x: 76, y: 24 } },
@@ -118,10 +118,31 @@ describe('DecisionDetector rate limiting', () => {
 
   it('only surfaces moments where the ghost also wins in simulation', () => {
     const { live, recap } = analyzeMatch(match);
-    for (const m of [...live, ...recap]) {
+    for (const m of [...live, ...recap].filter((x) => x.kind === 'miss')) {
       expect(m.sim).toBeDefined();
       expect(m.sim!.ghost).toBeGreaterThan(m.sim!.actual);
       expect(m.ghost.expectedValue).toBeGreaterThan(m.actual.expectedValue);
+    }
+  });
+
+  it('never freezes on a close call, and never blames a player for an option behind them or offside', () => {
+    const { live, recap } = analyzeMatch(match);
+    for (const m of [...live, ...recap]) {
+      expect(m.confidence).toBeDefined();
+      expect(m.confidence!.level).not.toBe('close');
+      if (m.kind === 'miss') {
+        expect(m.ghost.visibility).not.toBe('behind');
+        expect(m.ghost.offside ?? false).toBe(false);
+      }
+    }
+  });
+
+  it('genius moments: the choice made beats the obvious option in simulation', () => {
+    const { live, detector } = analyzeMatch(match);
+    for (const m of [...live.filter((x) => x.kind === 'genius'), ...detector.geniusRecap()]) {
+      expect(m.sim!.actual).toBeGreaterThan(m.sim!.ghost);
+      expect(m.evGained).toBeGreaterThan(0);
+      expect(['success', 'goal']).toContain(m.actualOutcome);
     }
   });
 
@@ -164,7 +185,6 @@ describe('what-if simulation', () => {
     expect(first.type).toBe(m.ghost.action);
     expect(first.playerId).toBe(ev.playerId);
     if (m.ghost.targetPlayerId) expect(first.targetPlayerId).toBe(m.ghost.targetPlayerId);
-    if (m.ghost.action !== 'shot') expect(first.outcome).toBe('success');
     for (const s of first.freezeFrame) {
       const orig = ev.freezeFrame.find((x) => x.playerId === s.playerId)!;
       // same instant, same team frame -> same positions
@@ -179,7 +199,22 @@ describe('what-if simulation', () => {
     const total = Object.values(a.summary.outcomes).reduce((x, y) => x + y, 0);
     expect(total).toBe(30);
     expect(a.summary.shotRate).toBeGreaterThanOrEqual(a.summary.goalRate);
-    expect(a.summary.expectedGoals).toBeCloseTo(a.summary.pSuccess * a.summary.avgXg, 10);
+    // Nothing is forced: a failed first action creates no chance, so xG per attempt = success rate × xG when it comes off.
+    if (m.ghost.action !== 'shot') expect(a.summary.expectedGoals).toBeCloseTo(a.summary.pSuccess * a.summary.avgXg, 10);
+    else expect(a.summary.expectedGoals).toBeCloseTo(a.summary.avgXg, 10);
+    const t = a.summary.tree;
+    for (const x of [t.arrive, t.thenShot, t.thenGoal, t.thenKept, t.thenLost, t.counterShot]) expect(x).toBeGreaterThanOrEqual(0);
+    expect(t.thenShot + t.thenKept + t.thenLost).toBeCloseTo(t.arrive > 0 ? 1 : 0, 5);
+  });
+
+  it('defenders react: a safe pass comes off in simulation far more often than a risky one', () => {
+    const analyses = match.events.map((e, i) => analyzeEvent(e, roster, match.events[i - 1])).filter((x) => x !== null);
+    const passes = analyses.flatMap((x) => x.alternatives.filter((o) => o.action === 'pass').map((o) => ({ e: x.event, o })));
+    const safe = passes.filter((p) => p.o.pSuccess > 0.9).slice(0, 6);
+    const risky = passes.filter((p) => p.o.pSuccess < 0.4 && p.o.pSuccess > 0.1).slice(0, 6);
+    const rate = (xs: typeof safe) => xs.reduce((s, p) => s + simulateWhatIf(match.meta, p.e, p.o, { rollouts: 20 }).summary.pSuccess, 0) / xs.length;
+    expect(rate(safe)).toBeGreaterThan(0.75);
+    expect(rate(safe)).toBeGreaterThan(rate(risky) + 0.3);
   });
 
   it('ends the replay on the play that finished the move', () => {

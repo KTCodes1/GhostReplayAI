@@ -87,6 +87,7 @@ export type SimInitialState = {
   carrierId: string;
   ball: Vec2; // absolute
   positions: Map<string, Vec2>; // absolute
+  velocities?: Map<string, Vec2>; // absolute, m/s
 };
 
 export type SimConfig = { rng: Rng; meta: MatchMeta; idPrefix?: string; initial?: SimInitialState };
@@ -100,10 +101,44 @@ export type BranchResult = {
   xG: number; // xG of the shot that ended the branch, if any
   endBall: Vec2; // absolute
   durationMs: number;
+  /** Did the forced first action come off? */
+  firstSuccess: boolean;
+  /** Where the shot was taken from / the ball was lost (absolute). */
+  shotFrom?: Vec2;
+  lossAt?: Vec2;
+  /** After losing the ball: did the opponent counter-attack into a shot (within a few actions)? */
+  counter?: { shot: boolean; goal: boolean; xG: number };
+};
+
+export type BranchOptions = {
+  forceSuccess?: boolean;
+  /** Resolve a forced pass with defenders reacting while the ball travels, instead of forcing or rolling the model. */
+  reactive?: boolean;
+  maxActions?: number;
+  maxMs?: number;
+  /** Keep simulating after a turnover to see if the opponent counter-attacks. */
+  counter?: boolean;
 };
 
 /** Players can't cover more ground than this between two snapshots (m/s, averaged). */
 const MAX_RUN_SPEED = 7;
+
+// Reactive defending (what-if passes): defenders accelerate from their current motion, reach out
+// a leg, and getting there doesn't always mean a clean interception.
+const ACCEL = 4.5; // m/s²
+const REACH = 0.9; // metres
+const CLEAN_CUT = 0.75;
+/** Distance covered in `sec` seconds from a standing start, accelerating up to `vmax`. */
+const runCover = (sec: number, vmax: number) => {
+  if (sec <= 0) return 0;
+  const tAcc = vmax / ACCEL;
+  return sec <= tAcc ? 0.5 * ACCEL * sec * sec : (vmax * vmax) / (2 * ACCEL) + vmax * (sec - tAcc);
+};
+/** Time to cover `d` metres from a standing start. */
+const runTime = (d: number, vmax: number) => {
+  const dAcc = (vmax * vmax) / (2 * ACCEL);
+  return d <= dAcc ? Math.sqrt((2 * d) / ACCEL) : vmax / ACCEL + (d - dAcc) / vmax;
+};
 
 export function createSimulation(cfg: SimConfig) {
   const { rng, meta } = cfg;
@@ -117,7 +152,8 @@ export function createSimulation(cfg: SimConfig) {
     return teams[team].players.map((info, i) => {
       const base = slots[i]!.base;
       const pos = init?.positions.get(info.id) ?? toAbsolute(base, team);
-      return { info, team, base, isGK: info.position === 'GK', pos, prevPos: pos, vel: v(0, 0), drift: v(0, 0) };
+      const vel = init?.velocities?.get(info.id) ?? v(0, 0);
+      return { info, team, base, isGK: info.position === 'GK', pos, prevPos: pos, vel, drift: v(0, 0) };
     });
   });
   const byId = new Map(players.map((p) => [p.info.id, p]));
@@ -418,7 +454,43 @@ export function createSimulation(cfg: SimConfig) {
     return resolveShot(pick.pSuccess, context);
   }
 
-  function resolvePass(o: ScoredOption, context?: string, force?: boolean) {
+  /**
+   * Reactive defenders: while the ball travels, every defender reacts (after ~0.3 s) and runs at a
+   * pace-based speed. A ground pass is cut out if a defender can reach its path before the ball gets
+   * there; a lofted one only near the target. At the target the defender must beat the receiver to it.
+   * The passer can also simply misplace it (longer passes, weaker passers).
+   */
+  function reactivePass(receiver: SimPlayer, startAbs: Vec2, endAbs: Vec2, endTF: Vec2, length: number, ballSpeed: number): { success: boolean; cut?: { p: SimPlayer; at: Vec2 } } {
+    const T = length / ballSpeed;
+    const accuracy = clamp(0.985 - length * 0.0035 * (1.3 - carrier.info.attrs.passing), 0.75, 0.99);
+    if (!rng.chance(accuracy)) return { success: false };
+    const lofted = length > 30;
+    let best: { p: SimPlayer; at: Vec2; u: number } | undefined;
+    for (const d of teamOf(other(possession))) {
+      if (d.isGK && !inBox(endTF)) continue;
+      const react = clamp(rng.normal(0.3, 0.08), 0.12, 0.55);
+      const vmax = (6 + 1.8 * d.info.attrs.pace) * clamp(rng.normal(1, 0.06), 0.85, 1.15);
+      const from = add(d.pos, scale(d.vel, Math.min(react, T)));
+      for (let u = lofted ? 0.85 : 0.1; u <= 1.0001; u += 0.05) {
+        if (best && u >= best.u) break;
+        const at = lerpV(startAbs, endAbs, Math.min(1, u));
+        if (u < 0.999) {
+          if (dist(from, at) <= runCover(u * T - react, vmax) + REACH && rng.chance(CLEAN_CUT)) {
+            best = { p: d, at, u };
+            break;
+          }
+        } else {
+          const receiverT = dist(add(receiver.pos, scale(receiver.vel, 0.2)), endAbs) / 7;
+          const ballControlled = Math.max(T, receiverT);
+          const defenderT = react + runTime(Math.max(0, dist(from, endAbs) - REACH), vmax);
+          if (defenderT < ballControlled - 0.2) best = { p: d, at: endAbs, u: 1 };
+        }
+      }
+    }
+    return best ? { success: false, cut: { p: best.p, at: best.at } } : { success: true };
+  }
+
+  function resolvePass(o: ScoredOption, context?: string, force?: boolean, reactive?: boolean) {
     const att = possession;
     const def = other(att);
     const receiver = byId.get(o.targetPlayerId!)!;
@@ -427,9 +499,10 @@ export function createSimulation(cfg: SimConfig) {
     const endTF = clampToPitch(add(o.end, v(rng.normal(0, 0.4 + length * 0.02), rng.normal(0, 0.4 + length * 0.02))), 0.5);
     const ballSpeed = clamp(10 + length * 0.28 + rng.normal(0, 1.5), 7, 30);
     const travelMs = (length / ballSpeed) * MS;
-    const success = force ?? rng.chance(o.pSuccess);
     const startAbs = { ...ball };
     const endAbs = toAbsolute(endTF, att);
+    const r = reactive ? reactivePass(receiver, startAbs, endAbs, endTF, length, ballSpeed) : undefined;
+    const success = r ? r.success : force ?? rng.chance(o.pSuccess);
 
     emit({ type: 'pass', team: att, player: carrier, start: startAbs, end: endAbs, target: receiver, outcome: success ? 'success' : 'fail', ballSpeed, context });
 
@@ -440,11 +513,11 @@ export function createSimulation(cfg: SimConfig) {
       return;
     }
 
-    // Who wins it? The defender most threatening the lane, else the one nearest the target.
-    let interceptor: SimPlayer | undefined;
-    let interceptAt: Vec2 | undefined;
+    // Who wins it? The defender who got there (reactive), else the one most threatening the lane, else the one nearest the target.
+    let interceptor: SimPlayer | undefined = r?.cut?.p;
+    let interceptAt: Vec2 | undefined = r?.cut?.at;
     let bestThreat = 0.35;
-    for (const p of teamOf(def)) {
+    for (const p of interceptor ? [] : teamOf(def)) {
       const { d, u } = pointToSegment(p.pos, startAbs, endAbs);
       if (u <= 0.05 || u >= 0.95) continue;
       const threat = Math.exp(-((d / (1.2 + 0.05 * length * u)) ** 2));
@@ -630,7 +703,7 @@ export function createSimulation(cfg: SimConfig) {
    * Play out a "what if": the carrier performs `first` straight from the initial state
    * (optionally guaranteed to come off), then the simulation runs on until the move ends.
    */
-  function playBranch(first: ForcedAction, opts: { forceSuccess?: boolean; maxActions?: number; maxMs?: number } = {}): BranchResult {
+  function playBranch(first: ForcedAction, opts: BranchOptions = {}): BranchResult {
     const t0 = t;
     const startTeam = possession;
     const ctx = optionContext();
@@ -640,10 +713,13 @@ export function createSimulation(cfg: SimConfig) {
         : first.action === 'carry'
           ? evaluateCarry(ctx, first.end)
           : evaluateShot(ctx);
-    let mark = events.length;
-    if (o.action === 'pass') resolvePass(o, undefined, opts.forceSuccess);
+    const firstAt = events.length;
+    let mark = firstAt;
+    if (o.action === 'pass') resolvePass(o, undefined, opts.forceSuccess, opts.reactive);
     else if (o.action === 'carry') resolveCarry(o, undefined, opts.forceSuccess);
     else resolveShot(o.pSuccess);
+    const firstEvent = events[firstAt]!;
+    const firstSuccess = firstEvent.type === 'shot' ? firstEvent.outcome === 'goal' : firstEvent.outcome === 'success';
     let ended = endedBy(mark);
     for (let i = 0; !ended && i < (opts.maxActions ?? 6) && t - t0 < (opts.maxMs ?? 15_000); i++) {
       if (possession !== startTeam) {
@@ -655,10 +731,30 @@ export function createSimulation(cfg: SimConfig) {
       ended = endedBy(mark);
     }
     const outcome = ended?.outcome ?? 'kept';
+    const xG = outcome === 'goal' || outcome === 'shot' ? lastShotXg : 0;
     // Stop the story at the play that ended it (no celebrations, restarts or kick-offs).
     const out = ended ? events.slice(0, ended.at + 1) : [...events];
     const last = out[out.length - 1]!;
-    return { events: out, outcome, xG: outcome === 'goal' || outcome === 'shot' ? lastShotXg : 0, endBall: { ...ball }, durationMs: last.t - t0 };
+    const endEvent = ended ? events[ended.at]! : undefined;
+    const shotFrom = endEvent?.type === 'shot' ? toAbsolute(endEvent.start, endEvent.team) : undefined;
+    const lossAt = outcome === 'turnover' ? { ...ball } : undefined;
+
+    // What the opponent does with it: a few more actions, counting any shot as a counter-attack.
+    let counter: BranchResult['counter'];
+    if (opts.counter && outcome === 'turnover') {
+      counter = { shot: false, goal: false, xG: 0 };
+      const tTurn = t;
+      for (let i = 0; i < 5 && t - tTurn < 12_000 && possession !== startTeam; i++) {
+        const before = events.length;
+        step();
+        const shot = events.slice(before).find((e) => e.type === 'shot' && e.team !== startTeam);
+        if (shot) {
+          counter = { shot: true, goal: shot.outcome === 'goal', xG: lastShotXg };
+          break;
+        }
+      }
+    }
+    return { events: out, outcome, xG, endBall: { ...ball }, durationMs: last.t - t0, firstSuccess, ...(shotFrom ? { shotFrom } : {}), ...(lossAt ? { lossAt } : {}), ...(counter ? { counter } : {}) };
   }
 
   return { events, playMatch, playBranch };

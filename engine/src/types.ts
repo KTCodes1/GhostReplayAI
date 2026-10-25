@@ -129,6 +129,18 @@ export type GhostOption = {
   deltaVsActual: number;
   difficulty?: number; // 1..10 for passes
   features?: Record<string, number>; // model inputs for the analyst breakdown
+  /** Could the player see it? Judged from which way they were facing (see models/vision.ts). */
+  visibility?: 'visible' | 'peripheral' | 'behind';
+  /** The receiver was offside when the ball would have been played. */
+  offside?: boolean;
+  /** A pass played into the path of a teammate who was already running. */
+  runner?: boolean;
+  /** Chance of coming off before adjusting for what this player can execute. */
+  modelP?: number;
+  /** How well the technical demand suits the player (1 = routine), and why not. */
+  execution?: { fit: number; notes: string[] };
+  /** Two-step look-ahead: the best next action this option sets up, when that's worth more than the position itself. */
+  followUp?: { action: 'pass' | 'shot' | 'carry'; targetPlayerId?: string; end: Vec2; ev: number };
 };
 
 export type DecisionReason = {
@@ -148,8 +160,23 @@ export type DecisionReason = {
     | 'space_to_carry'
     | 'top_scorer'
     | 'clinical_finisher'
-    | 'weak_finisher';
-  about: 'actual' | 'best';
+    | 'weak_finisher'
+    // causes: why the option was on (or off)
+    | 'pressing_gap'
+    | 'runner_in_behind'
+    | 'high_line'
+    | 'overload'
+    | 'ball_watching'
+    | 'sets_up_next'
+    | 'execution_demand'
+    | 'peripheral_vision'
+    | 'unseen_option'
+    | 'offside'
+    | 'game_state'
+    | 'saw_it'
+    | 'hard_to_find';
+  /** actual = the choice made; best = the headline option; context = the situation (vision, game state). */
+  about: 'actual' | 'best' | 'context';
   text: string; // short English fact; personalised prose is produced server-side
   value?: number;
 };
@@ -171,6 +198,21 @@ export type DecisionMoment = {
   reasons: DecisionReason[];
   /** Simulation check: expected goals per attempt for the actual choice vs the ghost. */
   sim?: { actual: number; ghost: number; rollouts: number };
+  /**
+   * miss = a better option was on (ghost = that option);
+   * genius = the player found the best option and it was hard to see (ghost = the obvious option most would take).
+   */
+  kind: 'miss' | 'genius';
+  /** Genius moments: how much more the chosen option was worth than the obvious one. */
+  evGained?: number;
+  /** Which way the player was facing and how wide they could see (degrees, half-angles). */
+  vision?: { facing: Vec2; centralDeg: number; peripheralDeg: number; basis: 'running' | 'receiving' | 'default' };
+  /** How sure the engine is: model margin and simulation margin combined. Close calls never freeze play. */
+  confidence?: { level: 'clear' | 'likely' | 'close'; score: number };
+  /** Score and minute shape the right call. */
+  gameState?: { code: string; label: string; lossAversion: number; riskAppetite: number };
+  /** A better option existed but was behind the player, so they aren't blamed for it. */
+  unseen?: GhostOption;
 };
 
 export type OverlayCue = {
