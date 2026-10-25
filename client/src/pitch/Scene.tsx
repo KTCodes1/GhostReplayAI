@@ -1,9 +1,9 @@
-import { Line, OrbitControls } from '@react-three/drei';
+import { Html, Line, OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { create } from 'zustand';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { type PlayerInfo, type Side, clamp, toAbsolute } from '@ghost/engine';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { playback, sampleView, useMatch } from '../store';
 import { kitColors, toWorld } from './coords';
@@ -137,6 +137,8 @@ function PlayerMarker({ info, team, colors }: { info: PlayerInfo; team: Side; co
   const ref = useRef<THREE.Group>(null);
   const ring = useRef<THREE.Mesh>(null);
   const focused = useMatch((s) => s.prefs.focusPlayerId === info.id);
+  const tag = useMatch((s) => s.playerTags[info.id]);
+  const showTag = useTagTimer(tag?.until);
   useFrame(() => {
     const g = ref.current;
     const view = playback.view;
@@ -173,7 +175,79 @@ function PlayerMarker({ info, team, colors }: { info: PlayerInfo; team: Side; co
       <sprite position={[0, 2.6, 0]} scale={[0.052, 0.026, 1]} renderOrder={5}>
         <spriteMaterial map={badgeTexture(info.role, colors.main)} depthTest={false} transparent sizeAttenuation={false} />
       </sprite>
+      {tag && showTag && (
+        <Html position={[0, 3.6, 0]} center zIndexRange={[18, 10]} style={{ pointerEvents: 'none' }}>
+          <div className={`tag tag-alert ${tag.kind}`}>{tag.text}</div>
+        </Html>
+      )}
     </group>
+  );
+}
+
+/** True until `until` (performance.now() ms), re-rendering once when it expires. */
+function useTagTimer(until?: number): boolean {
+  const [, force] = useState(0);
+  const live = until !== undefined && until > performance.now();
+  useEffect(() => {
+    if (!live) return;
+    const id = setTimeout(() => force((x) => x + 1), until! - performance.now() + 30);
+    return () => clearTimeout(id);
+  }, [until, live]);
+  return live;
+}
+
+/**
+ * What-if timeline: the ghost run's 22 players, translucent, moving over the real continuation.
+ * Same kit colours, so you can see who went where in each version.
+ */
+function GhostPlayers() {
+  const meta = useMatch((s) => s.meta);
+  const comparing = useMatch((s) => s.comparing);
+  if (!meta || !comparing) return null;
+  const kits = kitColors(meta);
+  return (
+    <>
+      {(['home', 'away'] as Side[]).flatMap((team) => meta[team].players.map((p) => <GhostMarker key={p.id} id={p.id} color={kits[team].main} />))}
+      <GhostBall />
+    </>
+  );
+}
+
+function GhostMarker({ id, color }: { id: string; color: string }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const p = playback.compareView?.positions.get(id);
+    if (!ref.current || !p) return;
+    const [x, , z] = toWorld(p);
+    ref.current.position.set(x, 0, z);
+  });
+  return (
+    <group ref={ref}>
+      <mesh position={[0, 0.9, 0]}>
+        <capsuleGeometry args={[0.45, 0.9, 4, 12]} />
+        <meshBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0.05, 0]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[0.85, 1.05, 24]} />
+        <meshBasicMaterial color="#5b9cf5" transparent opacity={0.7} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function GhostBall() {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const b = playback.compareView?.ball;
+    if (!ref.current || !b) return;
+    const [x, , z] = toWorld(b);
+    ref.current.position.set(x, 0.35 + b.h, z);
+  });
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[0.38, 16, 16]} />
+      <meshBasicMaterial color="#8bb9f8" transparent opacity={0.75} depthWrite={false} />
+    </mesh>
   );
 }
 
@@ -286,7 +360,7 @@ function CameraRig() {
     // The viewer has taken the camera.
     if (g && useFreeCam.getState().manual) return;
     // Close cameras follow a what-if exactly like live play; they only need special framing for the freeze.
-    if (g && close_ && !playback.whatIf) {
+    if (g && close_ && !playback.whatIf && !playback.compare) {
       // Stand just behind the decision-maker and look down the ghost arrow: the option as they saw it.
       const [ax, , az] = toWorld(toAbsolute(g.event.start, g.moment.team));
       const [bx, , bz] = toWorld(toAbsolute(g.moment.ghost.end, g.moment.team));
@@ -299,7 +373,7 @@ function CameraRig() {
       // Sideline: always the full width of the pitch, panning along the touchline with the ball
       // (or centred on the two arrows while frozen).
       let sx = side.current;
-      if (g && !playback.whatIf) {
+      if (g && !playback.whatIf && !playback.compare) {
         const a = toAbsolute(g.event.start, g.moment.team);
         const b = toAbsolute(g.moment.ghost.end, g.moment.team);
         sx = clamp((a.x + b.x) / 2 - 52.5, -SIDE_CAM.maxX, SIDE_CAM.maxX);
@@ -312,7 +386,7 @@ function CameraRig() {
       const b = toAbsolute(g.moment.ghost.end, g.moment.team);
       let fx = (a.x + b.x) / 2;
       let fy = (a.y + b.y) / 2;
-      if (playback.whatIf) {
+      if (playback.whatIf || playback.compare) {
         fx = (fx + follow.current.x) / 2;
         fy = (fy + follow.current.y) / 2;
       }
@@ -375,6 +449,7 @@ export function PitchScene() {
       <CameraRig />
       <Pitch />
       <Players />
+      <GhostPlayers />
       <Ball />
       <Ghosts />
     </Canvas>

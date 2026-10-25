@@ -288,6 +288,38 @@ export function Split({ home, away, total = home + away }: { home: number; away:
   );
 }
 
+/** Match Pulse: how the last five minutes have felt, side by side, and the spell it adds up to. */
+function PulsePanel() {
+  const pulse = useMatch((s) => s.pulse);
+  const meta = useMatch((s) => s.meta)!;
+  const line = useMatch((s) => s.ticker.find((t) => t.kind === 'pulse'));
+  if (!pulse) return null;
+  const { home: h, away: a } = pulse;
+  const vars = { ['--home' as string]: teamColor(meta, 'home'), ['--away' as string]: teamColor(meta, 'away') };
+  const pctV = (v: number) => `${Math.round(v * 100)}%`;
+  return (
+    <div className="stat-group pulse" style={vars}>
+      <span className="eyebrow">Match pulse · last {pulse.windowMin} min</span>
+      <Compare label="Pressing (per min)" home={h.pressure} away={a.pressure} fmt={(v) => v.toFixed(1)} />
+      <Compare label="Territory" home={h.territory} away={a.territory} fmt={pctV} />
+      <Compare label="Threat (xT + xG)" home={h.threat} away={a.threat} fmt={(v) => v.toFixed(2)} />
+      {h.predictability !== null && a.predictability !== null && <Compare label="Predictability" home={h.predictability} away={a.predictability} fmt={pctV} />}
+      {pulse.spell && (
+        <p className="spell">
+          <i className="chip" style={{ background: pulse.spell.team ? teamColor(meta, pulse.spell.team) : 'var(--muted)' }} />
+          {pulse.spell.team ? `${meta[pulse.spell.team].shortName}: ` : ''}
+          {pulse.spell.label}
+        </p>
+      )}
+      {line && (
+        <p className="spell-line" dir="auto">
+          {line.text.replace(/^Match pulse: /, '')} {line.source && line.source !== 'template' && <AiBadge source={line.source} />}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function StatsTab() {
   const stats = useMatch((s) => s.stats);
   const meta = useMatch((s) => s.meta)!;
@@ -307,6 +339,7 @@ export function StatsTab() {
           <i className="chip" style={{ background: teamColor(meta, 'away') }} />
         </span>
       </div>
+      <PulsePanel />
       <div className="stat-group" style={vars}>
         <span className="eyebrow">Attack</span>
         <Compare label="Possession" home={h.possessionPct} away={a.possessionPct} fmt={(v) => `${Math.round(v)}%`} />
@@ -357,6 +390,7 @@ export function TimelineTab() {
               {it.kind === 'genius' && <i className="diamond genius" />}
               {it.kind === 'goal' && <i className="goal-dot" />}
               {it.kind === 'studio' && <span className="tl-tag">STUDIO</span>}
+              {it.kind === 'pulse' && <span className="tl-tag pulse">PULSE</span>}
               <span>{it.text}</span>
               {it.source && it.source !== 'template' && <AiBadge source={it.source} />}
               {m && <span className="tl-replay">Replay</span>}
@@ -439,6 +473,19 @@ export function EventFooter() {
       ))}
       <div className="spacer" />
       {e && <span>{e.freezeFrame.length} players · freeze-frame</span>}
+    </div>
+  );
+}
+
+/** On the pitch during a what-if timeline: what you're looking at. */
+export function CompareLabel() {
+  const comparing = useMatch((s) => s.comparing);
+  if (!comparing) return null;
+  return (
+    <div className="compare-label">
+      <b>WHAT-IF TIMELINE</b>
+      <span>Solid: what happened · Translucent: the ghost run</span>
+      <span className="hint">Plausible simulation, not a prediction</span>
     </div>
   );
 }

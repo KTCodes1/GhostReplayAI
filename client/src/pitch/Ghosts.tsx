@@ -191,6 +191,7 @@ function PredictArrows({ moment, start }: { moment: DecisionMoment; start: Vec2 
 export function Ghosts() {
   const ghost = useMatch((s) => s.ghost);
   const playing = useMatch((s) => s.whatIfPlaying);
+  const comparing = useMatch((s) => s.comparing);
   const results = useMatch((s) => s.whatIf);
   const predictMode = useMatch((s) => s.predictMode);
   const voted = useMatch((s) => (s.ghost ? !!s.myVotes[s.ghost.moment.eventId] : false));
@@ -221,6 +222,14 @@ export function Ghosts() {
   const facing = moment.vision ? (team === 'home' ? moment.vision.facing : { x: -moment.vision.facing.x, y: -moment.vision.facing.y }) : undefined;
   const cone = facing && moment.vision && <VisionCone at={start} facing={facing} centralDeg={moment.vision.centralDeg} peripheralDeg={moment.vision.peripheralDeg} />;
 
+  // What-if timeline: just faint traces of the two options while both versions play.
+  if (comparing)
+    return (
+      <group>
+        <Arrow from={start} to={event.end ? toAbsolute(event.end, team) : end(moment.actual)} color={genius ? GENIUS : ACTUAL} width={2} dashed opacity={0.4} />
+        <Arrow from={start} to={end(moment.ghost)} color={genius ? ALT : GHOST} width={2} dashed opacity={0.4} />
+      </group>
+    );
   // While a what-if plays, only keep a faint trace of the option being simulated.
   if (playing) {
     const o = all.find((x) => optionKey(x) === playing);

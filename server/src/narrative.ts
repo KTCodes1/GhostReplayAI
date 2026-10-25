@@ -14,9 +14,23 @@ import {
   type GhostAnalysis,
   type SketchVerdict,
   type WhatIfResult,
+  type Evidence,
+  type EvidenceFact,
+  type MatchPulse,
+  type PulseSpell,
+  type Roster,
+  buildRoster,
+  checkAgainstFacts,
   hashSeed,
+  momentFacts,
+  parseClaimed,
+  templateExplanation,
+  withFacts,
 } from '@ghost/engine';
 import { type AskResult, askAI } from './ai/askAI';
+
+/** An AI answer plus how it was checked against the engine's facts. */
+export type CheckedResult = AskResult & { evidence?: Evidence };
 
 const SYSTEM = [
   'You are the co-commentator and studio analyst for "Premier League Studio", covering a SYNTHETIC match between invented clubs.',
@@ -28,8 +42,10 @@ const SYSTEM = [
 
 export class Narrator {
   private players = new Map<string, { info: PlayerInfo; team: Side }>();
+  private roster: Roster;
 
   constructor(private meta: MatchMeta) {
+    this.roster = buildRoster(meta);
     for (const team of ['home', 'away'] as Side[]) for (const info of meta[team].players) this.players.set(info.id, { info, team });
   }
 
@@ -96,65 +112,80 @@ export class Narrator {
     return `a pass to ${this.name(o.targetPlayerId)} (${pct(o.pSuccess)} chance to arrive${bypass})`;
   }
 
-  /** Why did this ghost moment matter? (Or, for a genius moment, what made it special?) */
-  explainMoment(mo: DecisionMoment): Promise<AskResult> {
-    if (mo.kind === 'genius') return this.explainGenius(mo);
-    const p = this.players.get(mo.playerId);
-    const who = p?.info.shortName ?? 'The player';
-    const outcome = mo.actualOutcome ? ` It ${outcomeWord(mo.actualOutcome)}.` : '';
-    const best = mo.reasons.find((r) => r.about === 'best');
-    const actualReason = mo.reasons.find((r) => r.about === 'actual');
-    const sim = mo.sim ? ` Across ${mo.sim.rollouts} simulations the better option produced ${mo.sim.ghost.toFixed(3)} expected goals per attempt against ${mo.sim.actual.toFixed(3)} for the choice made.` : '';
-    const fallback =
-      `${who} chose ${this.describe(mo.actual)}.${outcome} ` +
-      `The better ball was ${this.describe(mo.ghost)}${best ? `: ${best.text}` : ''}.` +
-      (actualReason ? ` Meanwhile ${actualReason.text}.` : '') +
-      sim;
-
-    const facts = [
-      `Match: ${this.meta.home.name} vs ${this.meta.away.name}, minute ${this.minute(mo.clockMs)}.`,
-      `Player: ${p?.info.name} (${p?.info.role}, ${this.club(mo.team)}). ${this.profile(mo.playerId)}`,
-      `What they did: ${this.describe(mo.actual)}.${outcome}`,
-      `Better option they missed: ${this.describe(mo.ghost)}.`,
-      mo.ghost.targetPlayerId ? `Who would have received it: ${this.profile(mo.ghost.targetPlayerId)}` : '',
-      `Value left on the table: ${mo.evLost.toFixed(3)} (expected-value units, goal probability).`,
-      mo.sim ? `Simulation check over ${mo.sim.rollouts} runs: better option ${mo.sim.ghost.toFixed(3)} xG per attempt vs actual ${mo.sim.actual.toFixed(3)}.` : '',
-      mo.ghost.visibility ? `What ${who} could see: the better option was ${visibilityWords(mo.ghost.visibility)}.` : '',
-      mo.confidence ? `How sure the engine is: ${mo.confidence.level} call (${Math.round(mo.confidence.score * 100)}%).` : '',
-      ...mo.reasons.map((r) => `Fact${r.about === 'context' ? ' (context)' : ''}: ${r.text}.`),
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const prompt = `${facts}\n\nIn two short sentences, as a TV analyst, explain why this moment mattered and what the better option was. Name the cause (the gap, the run, the overload) rather than just the numbers. Be fair: if it was on the edge of their vision or hard to execute, say so. Keep it under 50 words.`;
-    return askAI(prompt, { system: this.system(), fallback, maxTokens: 200, cacheKey: `ghost:${mo.eventId}` });
+  /**
+   * Check an AI answer's numbers and names against the facts it was given; anything unsupported
+   * means the template (written from the same facts) is used instead.
+   */
+  private async verified(job: Promise<AskResult>, factLines: string[], fallback: string): Promise<CheckedResult> {
+    const facts: EvidenceFact[] = factLines.filter(Boolean).map((text, i) => ({ id: `F${i + 1}`, text }));
+    const r = await job;
+    if (r.source === 'template') return { ...r, evidence: { status: 'template', claims: [], checked: facts.length, rejected: [] } };
+    const problems = checkAgainstFacts(r.text, null, facts, this.roster);
+    if (!problems.length) return { ...r, evidence: { status: 'verified', claims: [], checked: facts.length, rejected: [] } };
+    console.warn(`[evidence] rejected AI text (${problems.join('; ')}): ${r.text}`);
+    return { text: fallback, source: 'template', evidence: { status: 'template', claims: [], checked: facts.length, rejected: problems } };
   }
 
-  /** A genius moment: what did they see that others wouldn't? */
-  private explainGenius(mo: DecisionMoment): Promise<AskResult> {
-    const p = this.players.get(mo.playerId);
-    const who = p?.info.shortName ?? 'The player';
-    const found = mo.reasons.filter((r) => r.about === 'actual').map((r) => r.text);
-    const fallback =
-      `${who} found ${this.describe(mo.actual)} when most players would have taken ${this.describe(mo.ghost)}.` +
-      (found.length ? ` ${found[0]!.charAt(0).toUpperCase()}${found[0]!.slice(1)}.` : '') +
-      (mo.sim ? ` Across ${mo.sim.rollouts} simulations it created ${mo.sim.actual.toFixed(3)} xG per attempt against ${mo.sim.ghost.toFixed(3)} for the obvious ball.` : '');
-    const facts = [
-      `Match: ${this.meta.home.name} vs ${this.meta.away.name}, minute ${this.minute(mo.clockMs)}.`,
-      `Player: ${p?.info.name} (${p?.info.role}, ${this.club(mo.team)}). ${this.profile(mo.playerId)}`,
-      `What they did (it came off): ${this.describe(mo.actual)}${mo.actual.visibility ? `, ${visibilityWords(mo.actual.visibility)}` : ''}.`,
-      `The obvious, safer option most players take: ${this.describe(mo.ghost)}.`,
-      mo.evGained ? `Extra threat reached over the obvious ball: ${mo.evGained.toFixed(3)} (xT, goal probability).` : '',
-      mo.sim ? `Simulation over ${mo.sim.rollouts} runs: their choice ${mo.sim.actual.toFixed(3)} xG per attempt vs the obvious ball ${mo.sim.ghost.toFixed(3)}.` : '',
-      ...mo.reasons.map((r) => `Fact: ${r.text}.`),
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const prompt = `${facts}\n\nThis was a moment of genius, not a mistake. In two short sentences, as a TV analyst, celebrate what ${who} saw that others wouldn't and why it was the right ball. Keep it under 50 words.`;
-    return askAI(prompt, { system: this.system(), fallback, maxTokens: 200, cacheKey: `genius:${mo.eventId}` });
+  /**
+   * Why did this moment matter (or, for a genius moment, what made it special)? Evidence-checked:
+   * the AI sees only the engine's numbered facts, must list the facts behind each claim, and the
+   * answer is validated; a rejected answer is regenerated once with the problems spelled out, then
+   * we fall back to an explanation written straight from the facts. When the Fair Play lens says
+   * there isn't enough evidence, that is what the viewer is told.
+   */
+  async explainMoment(mo: DecisionMoment, e: MatchEvent): Promise<CheckedResult> {
+    const facts = momentFacts(mo, e, this.roster);
+    const tpl = templateExplanation(mo, facts, this.roster);
+    const fromTemplate = (status: Evidence['status'], rejected: string[]): CheckedResult => ({
+      text: tpl.explanation,
+      source: 'template',
+      evidence: { status, claims: withFacts(tpl.claims, facts), checked: facts.length, rejected },
+    });
+    if (mo.fairPlay?.verdict === 'insufficient') return fromTemplate('insufficient', []);
+
+    const genius = mo.kind === 'genius';
+    const who = this.name(mo.playerId);
+    const task = genius
+      ? `This was a moment of genius, not a mistake. As a TV analyst, celebrate in two short sentences (under 50 words) what ${who} saw that others wouldn't and why it was the right ball.`
+      : `As a TV analyst, explain in two short sentences (under 50 words) why this moment mattered and what the better option was. Name the cause (the gap, the run, the overload) rather than just the numbers. Be fair: if it was on the edge of their vision or hard to execute, say so.`;
+    const rules =
+      'Use ONLY the facts below. Every number you write must appear in the facts, exactly as written there. Mention only players named in the facts. ' +
+      'Reply with ONLY a JSON object: {"explanation": "<your two sentences>", "claims": [{"text": "<one claim from the explanation>", "facts": ["F3", "F8"]}]}. ' +
+      'Every sentence of the explanation must be covered by a claim, and every claim must list the fact ids it relies on.';
+    const sheet = facts.map((f) => `${f.id}: ${f.text}`).join('\n');
+    const rejected: string[] = [];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const retry = attempt ? `\n\nYour previous answer was rejected because: ${rejected.join('; ')}. Fix every one of these.` : '';
+      const r = await askAI(`Facts from the match engine:\n${sheet}\n\n${task}\n${rules}${retry}`, {
+        system: this.system(),
+        fallback: '',
+        maxTokens: 450,
+        temperature: attempt ? 0.3 : 0.6,
+        cacheKey: `${genius ? 'genius' : 'ghost'}:${mo.eventId}:${attempt}`,
+      });
+      if (r.source === 'template' || !r.text) break; // AI unavailable: no point retrying
+      const parsed = parseClaimed(r.text);
+      const problems = parsed ? checkAgainstFacts(parsed.explanation, parsed.claims, facts, this.roster) : ['the answer was not in the required JSON format'];
+      if (parsed && !problems.length)
+        return { text: parsed.explanation, source: r.source, evidence: { status: attempt ? 'regenerated' : 'verified', claims: withFacts(parsed.claims, facts), checked: facts.length, rejected } };
+      console.warn(`[evidence] draft ${attempt + 1} for ${mo.eventId} rejected: ${problems.join('; ')}`);
+      rejected.push(...problems);
+    }
+    return fromTemplate('template', rejected);
+  }
+
+  /** A spell in the Match Pulse ("sustained pressure, but passing is becoming predictable"), checked against its facts. */
+  pulseLine(spell: PulseSpell, pulse: MatchPulse): Promise<CheckedResult> {
+    const club = (txt: string) => txt.replace(/^home\b/, this.meta.home.name).replace(/^away\b/, this.meta.away.name).replace(/; home:/, `; ${this.meta.home.name}:`).replace(/; away:/, `; ${this.meta.away.name}:`);
+    const team = spell.team ? this.club(spell.team) : 'Both sides';
+    const facts = [`Minute ${this.minute(pulse.clockMs)}, the last 5 minutes.`, `Spell: ${team}: ${spell.label.toLowerCase()}.`, ...spell.facts.map(club)];
+    const fallback = `${team}: ${spell.label.toLowerCase()}. ${club(spell.facts[0] ?? '')}`.trim();
+    const prompt = `${facts.join('\n')}\n\nAs the studio analyst, describe this spell of the match in one or two sentences (under 35 words), using only these facts. Write numbers exactly as given.`;
+    return this.verified(askAI(prompt, { system: this.system(), fallback, maxTokens: 140, priority: 'low', cacheKey: `pulse:${this.meta.matchId}:${Math.floor(pulse.clockMs / 60000)}:${spell.code}` }), facts, fallback);
   }
 
   /** A pundit's drawn option, scored by the engine: would it have worked? */
-  explainSketch(a: GhostAnalysis, v: SketchVerdict, w: WhatIfResult, mo?: DecisionMoment): Promise<AskResult> {
+  explainSketch(a: GhostAnalysis, v: SketchVerdict, w: WhatIfResult, mo?: DecisionMoment): Promise<CheckedResult> {
     const who = this.name(a.event.playerId);
     const o = v.option;
     const s = w.summary;
@@ -173,12 +204,12 @@ export class Narrator {
     ]
       .filter(Boolean)
       .join('\n');
-    const prompt = `${facts}\n\nAs the studio analyst, give a fair verdict on the pundit's suggestion in two short sentences: would it have worked, and how does it compare? Under 45 words.`;
-    return askAI(prompt, { system: this.system(), fallback, maxTokens: 160, cacheKey: `sketch:${a.event.id}:${w.key}` });
+    const prompt = `${facts}\n\nAs the studio analyst, give a fair verdict on the pundit's suggestion in two short sentences: would it have worked, and how does it compare? Under 45 words. Write numbers exactly as given.`;
+    return this.verified(askAI(prompt, { system: this.system(), fallback, maxTokens: 160, cacheKey: `sketch:${a.event.id}:${w.key}` }), facts.split('\n'), fallback);
   }
 
   /** Every ~15 minutes: who's in control, who's creating, is it calm or chaotic? */
-  studioLine(snap: StatsSnapshot, clockMs: number): Promise<AskResult> {
+  studioLine(snap: StatsSnapshot, clockMs: number): Promise<CheckedResult> {
     const { home: h, away: a } = snap.teams;
     const control: Side = h.possessionPct >= a.possessionPct ? 'home' : 'away';
     const danger: Side = h.xG >= a.xG ? 'home' : 'away';
@@ -204,7 +235,7 @@ export class Narrator {
       `Turnovers per minute: ${chaos.toFixed(1)} (game feel: ${mood}).`,
     ].join('\n');
     const ask = 'Give one studio-analyst observation (max 2 sentences, under 40 words) about control versus chaos and who has the momentum right now.';
-    return askAI(`${facts}\n\n${ask}`, { system: this.system(), fallback, maxTokens: 160, cacheKey: `studio:${this.meta.matchId}:${Math.floor(clockMs / 60000)}` });
+    return this.verified(askAI(`${facts}\n\n${ask} Write numbers exactly as given.`, { system: this.system(), fallback, maxTokens: 160, cacheKey: `studio:${this.meta.matchId}:${Math.floor(clockMs / 60000)}` }), facts.split('\n'), fallback);
   }
 
   /**
@@ -245,18 +276,23 @@ export class Narrator {
     try {
       const json = JSON.parse(r.text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()) as Record<string, unknown>;
       const lines = { ...fallback };
-      for (const id of picked) if (typeof json[id] === 'string' && (json[id] as string).trim()) lines[id] = (json[id] as string).trim();
+      picked.forEach((id, i) => {
+        const line = typeof json[id] === 'string' ? (json[id] as string).trim() : '';
+        // Each verdict is checked against the facts given for that player (and the scoreline).
+        const own = [`Match: ${this.scoreline(report.score)}.`, facts[i]!].map((text, k) => ({ id: `F${k + 1}`, text }));
+        if (line && !checkAgainstFacts(line, null, own, this.roster).length) lines[id] = line;
+      });
       return { lines, source: r.source };
     } catch {
       return { lines: fallback, source: 'template' };
     }
   }
 
-  halfTime(snap: StatsSnapshot): Promise<AskResult> {
+  halfTime(snap: StatsSnapshot): Promise<CheckedResult> {
     return this.summary(snap, [], 'half time', 3, `half:${this.meta.matchId}`);
   }
 
-  fullTime(snap: StatsSnapshot, recap: DecisionMoment[], report?: MatchReport): Promise<AskResult> {
+  fullTime(snap: StatsSnapshot, recap: DecisionMoment[], report?: MatchReport): Promise<CheckedResult> {
     const extra: string[] = [];
     if (report) {
       const w = report.whatIfScore;
@@ -266,7 +302,7 @@ export class Narrator {
     return this.summary(snap, recap, 'full time', 4, `full:${this.meta.matchId}`, extra);
   }
 
-  private summary(snap: StatsSnapshot, recap: DecisionMoment[], when: string, sentences: number, cacheKey: string, extra: string[] = []): Promise<AskResult> {
+  private summary(snap: StatsSnapshot, recap: DecisionMoment[], when: string, sentences: number, cacheKey: string, extra: string[] = []): Promise<CheckedResult> {
     const { home: h, away: a } = snap.teams;
     const top = [...recap].sort((x, y) => y.evLost - x.evLost)[0];
     const fallback =
@@ -284,7 +320,7 @@ export class Narrator {
     ].join('\n');
     const n = sentences;
     const prompt = `${facts}\n\nWrite the ${when} studio summary in at most ${n} sentences (under ${n * 25} words): the story of the match so far${recap.length ? ' and the decisions that shaped it' : ''}.`;
-    return askAI(prompt, { system: this.system(), fallback, maxTokens: 300, cacheKey, timeoutMs: 15_000 });
+    return this.verified(askAI(`${prompt} Write numbers exactly as given.`, { system: this.system(), fallback, maxTokens: 300, cacheKey, timeoutMs: 15_000 }), facts.split('\n'), fallback);
   }
 }
 

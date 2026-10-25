@@ -213,6 +213,11 @@ export type DecisionMoment = {
   gameState?: { code: string; label: string; lossAversion: number; riskAppetite: number };
   /** A better option existed but was behind the player, so they aren't blamed for it. */
   unseen?: GhostOption;
+  /**
+   * Fair Play lens (misses only): is this really on the player?
+   * clear = in view, playable and the simulation agrees; reasonable = defensible either way; insufficient = not enough evidence to judge.
+   */
+  fairPlay?: { verdict: 'clear' | 'reasonable' | 'insufficient'; label: string; why: string };
 };
 
 export type OverlayCue = {

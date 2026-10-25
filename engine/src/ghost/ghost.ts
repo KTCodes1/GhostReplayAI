@@ -265,7 +265,34 @@ export function toDecisionMoment(a: GhostAnalysis, roster: Roster, maxAlternativ
     ...(a.unseen && !genius ? { unseen: a.unseen } : {}),
     ...(a.sim ? { sim: a.sim } : {}),
     ...(a.confidence ? { confidence: a.confidence } : {}),
+    ...(genius ? {} : { fairPlay: fairPlayOf(a) }),
   };
+}
+
+/**
+ * The Fair Play lens: one plain verdict per missed opportunity. Clear only when the better option
+ * was in plain view, playable for this player, worth a real amount, and the simulation agrees
+ * with conviction; anything less is a reasonable alternative; no clear simulation verdict means
+ * there isn't enough evidence to judge.
+ */
+export function fairPlayOf(a: GhostAnalysis): NonNullable<DecisionMoment['fairPlay']> {
+  const level = a.confidence?.level;
+  if (!level || level === 'close' || a.best === a.actual)
+    return { verdict: 'insufficient', label: 'Not enough evidence to judge', why: "the model and the simulation don't clearly separate the options" };
+  const doubts: string[] = [];
+  if (a.best.visibility === 'peripheral') doubts.push('it was on the edge of their vision');
+  if (a.best.execution && a.best.execution.fit < 0.85) doubts.push('it was hard to execute');
+  if (a.evLost < CLEAR_MIN_GAIN) doubts.push('the gain was small');
+  if (level === 'likely') doubts.push('the evidence is good but not conclusive');
+  if (!doubts.length) return { verdict: 'clear', label: 'Clear opportunity missed', why: 'it was in view, playable, worth a real amount, and the simulation agrees' };
+  return { verdict: 'reasonable', label: 'Reasonable alternative', why: doubts.join('; ') };
+}
+const CLEAR_MIN_GAIN = 0.03;
+
+/** Was this the safe, obvious choice most players would make? (Predictability.) */
+export function isObviousChoice(a: GhostAnalysis): boolean {
+  const pool = [a.actual, ...a.alternatives.filter(isPlausible)];
+  return pool.reduce((m, o) => (typicalUtility(o) > typicalUtility(m) ? o : m), pool[0]!) === a.actual;
 }
 
 // ---- simulation check + confidence ------------------------------------------------

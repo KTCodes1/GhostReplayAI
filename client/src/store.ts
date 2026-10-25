@@ -22,12 +22,15 @@ import {
   type SketchVerdict,
   type Vec2,
   type VoteTally,
+  type Evidence,
+  type MatchPulse,
+  PlayerTracker,
   optionKey,
 } from '@ghost/engine';
 import { create } from 'zustand';
 import { Timeline, type View } from './timeline';
 
-export type TickerItem = { id: string; clockMs: number; team?: Side; text: string; kind: 'goal' | 'shot' | 'ghost' | 'genius' | 'info' | 'foul' | 'studio'; source?: AiSource };
+export type TickerItem = { id: string; clockMs: number; team?: Side; text: string; kind: 'goal' | 'shot' | 'ghost' | 'genius' | 'info' | 'foul' | 'studio' | 'pulse'; source?: AiSource };
 /** A pundit's drawn option for a moment, scored and simulated by the engine. */
 export type SketchResult = { verdict: SketchVerdict; whatif: WhatIfResult; note?: { text: string; source: AiSource } };
 export type Role = 'fan' | 'coach';
@@ -40,7 +43,10 @@ export type ClientPrefs = { focusPlayerId?: string };
 export type Caption = { text: string; kind: 'commentary' | 'studio'; source?: AiSource; until: number };
 export type CameraMode = 'broadcast' | 'tactical' | 'pitch' | 'player';
 /** `holdMs`: auto-continue after this long (demo mode); null = wait for the viewer. */
-export type GhostView = { moment: DecisionMoment; event: MatchEvent; pt: number; live: boolean; holdMs?: number | null };
+/** `continuation`: what really happened next (a few seconds), for the side-by-side what-if timeline. */
+export type GhostView = { moment: DecisionMoment; event: MatchEvent; pt: number; live: boolean; holdMs?: number | null; continuation: MatchEvent[] };
+/** A real-time name tag over a player (sprint speed, distance milestone). */
+export type PlayerTag = { text: string; kind: 'sprint' | 'distance'; until: number };
 
 /** Playback buffer, in match ms: the playhead stays this far behind the newest event. */
 const LAG = 8000; // > the server's 6 s dead-ball cap, so a long gap never drains the buffer
@@ -48,6 +54,8 @@ const LAG = 8000; // > the server's 6 s dead-ball cap, so a long gap never drain
 export const WHATIF_SPEED = 1.5;
 const WHATIF_MAX_GAP = 4000;
 const CAPTION_MS = { commentary: 5000, studio: 11000 };
+/** How long a sprint / distance tag stays over a player (wall ms). */
+const TAG_MS = 4500;
 
 type State = {
   status: 'idle' | 'connecting' | 'live' | 'ended' | 'error';
@@ -76,7 +84,13 @@ type State = {
   whatIfPlaying?: string; // option key
   whatIfDone: boolean;
   /** "Why it mattered" for each ghost moment, by event id. */
-  explanations: Record<string, { text: string; source: AiSource }>;
+  explanations: Record<string, { text: string; source: AiSource; evidence?: Evidence }>;
+  /** Rolling last-5-minute metrics and the current spell. */
+  pulse?: MatchPulse;
+  playerTags: Record<string, PlayerTag>;
+  /** What-if timeline: the real continuation and the ghost run playing together. */
+  comparing: boolean;
+  compareDone: boolean;
   prefs: ClientPrefs;
   caption?: Caption;
   recapNarrative?: { text: string; source: AiSource };
@@ -117,6 +131,9 @@ type Actions = {
   closeGhost: () => void;
   simulate: (key: string, play: boolean) => void;
   stopWhatIf: () => void;
+  /** Play what really happened and the headline ghost run side by side. */
+  compare: () => void;
+  stopCompare: () => void;
   setPrefs: (patch: Partial<ClientPrefs>) => void;
   openReport: () => void;
   closeReport: () => void;
@@ -136,6 +153,9 @@ export const playback = {
   playhead: 0,
   buffering: true,
   whatIf: undefined as undefined | { key: string; timeline: Timeline; startWall: number; endPt: number },
+  compare: undefined as undefined | CompareRun,
+  /** The ghost run's players during a what-if timeline (drawn translucent over the real ones). */
+  compareView: undefined as View | undefined,
   view: undefined as View | undefined,
 };
 
@@ -166,6 +186,7 @@ const initial = (): MatchReset => ({
   goalFlash: undefined,
   whatIfPlaying: undefined,
   caption: undefined,
+  pulse: undefined,
   recapNarrative: undefined,
   report: undefined,
   reportLines: undefined,
@@ -185,6 +206,9 @@ const initial = (): MatchReset => ({
   whatIfRequested: [],
   whatIfDone: false,
   explanations: {},
+  playerTags: {},
+  comparing: false,
+  compareDone: false,
   reportOpen: false,
   returnToReport: false,
   pausedForReport: false,
@@ -214,7 +238,31 @@ function saveViewer(v: { predictMode: boolean; role: Role }) {
   }
 }
 
+/** Events on a what-if timeline, with their playback times. */
+export type TimedEvent = { pt: number; e: MatchEvent };
+export type CompareRun = { actual: Timeline; ghost: Timeline; actualEvents: TimedEvent[]; ghostEvents: TimedEvent[]; startWall: number; endPt: number; team: Side };
+const COMPARE_MS = 6000;
+
+/** A timeline from a list of events, starting at the frozen moment (dead time between them capped). */
+function timelineOf(from: MatchEvent, list: MatchEvent[]): { tl: Timeline; timed: TimedEvent[] } {
+  const tl = new Timeline();
+  const timed: TimedEvent[] = [];
+  let pt = 0;
+  let prevT = from.t;
+  for (const e of list) {
+    pt += Math.min(Math.max(0, e.t - prevT), WHATIF_MAX_GAP);
+    prevT = e.t;
+    tl.add(e, pt);
+    timed.push({ pt, e });
+  }
+  return { tl, timed };
+}
+
+let tracker: PlayerTracker | undefined;
+
 function resetPlayback() {
+  playback.compare = undefined;
+  playback.compareView = undefined;
   playback.live = new Timeline();
   playback.playhead = 0;
   playback.buffering = true;
@@ -335,6 +383,7 @@ export const useMatch = create<State & Actions>((set, get) => {
       case 'meta': {
         durationMs = msg.durationMs;
         resetPlayback();
+        tracker = new PlayerTracker(msg.meta);
         set({ ...initial(), status: 'live', meta: msg.meta, speed: msg.speed, prefs: {}, matchParams: get().matchParams });
         break;
       }
@@ -349,6 +398,9 @@ export const useMatch = create<State & Actions>((set, get) => {
           pt: msg.playT,
           apply: (s) => {
             const item = tickerFor(e, metrics);
+            const alerts = tracker?.push(e) ?? [];
+            const tags = alerts.length ? { ...s.playerTags } : s.playerTags;
+            for (const a of alerts) tags[a.playerId] = { text: a.text, kind: a.kind, until: performance.now() + TAG_MS };
             const patch: Partial<State> = {
               lastEvent: e,
               lastMetrics: metrics,
@@ -358,6 +410,7 @@ export const useMatch = create<State & Actions>((set, get) => {
               progress: Math.min(1, e.t / durationMs),
             };
             if (item) patch.ticker = [item, ...s.ticker].slice(0, 40);
+            if (alerts.length) patch.playerTags = tags;
             if (e.type === 'shot' && e.outcome === 'goal') patch.goalFlash = { team: e.team, scorer: playerName(e.playerId), until: performance.now() + 3500 };
             return patch;
           },
@@ -382,7 +435,7 @@ export const useMatch = create<State & Actions>((set, get) => {
             ].slice(0, 40),
           }),
         });
-        pending.push({ pt, ghost: { moment, event, pt, live: true, holdMs: msg.holdMs } });
+        pending.push({ pt, ghost: { moment, event, pt, live: true, holdMs: msg.holdMs, continuation: msg.continuation } });
         break;
       }
       case 'whatif': {
@@ -404,12 +457,12 @@ export const useMatch = create<State & Actions>((set, get) => {
         const { kind, text, source } = msg;
         // Ignore text written for settings the viewer has since changed.
         if (kind === 'ghost' && msg.eventId) {
-          set({ explanations: { ...get().explanations, [msg.eventId]: { text, source } } });
+          set({ explanations: { ...get().explanations, [msg.eventId]: { text, source, ...(msg.evidence ? { evidence: msg.evidence } : {}) } } });
           break;
         }
         // Studio lines / summaries: show when the pitch catches up with when they were written.
-        const label = kind === 'half_time' ? 'Half-time analysis' : kind === 'full_time' ? 'Full-time analysis' : 'Studio';
-        const item: TickerItem = { id: `n-${kind}-${msg.clockMs}`, clockMs: msg.clockMs, kind: 'studio', text: `${label}: ${text}`, source };
+        const label = kind === 'half_time' ? 'Half-time analysis' : kind === 'full_time' ? 'Full-time analysis' : kind === 'pulse' ? 'Match pulse' : 'Studio';
+        const item: TickerItem = { id: `n-${kind}-${msg.clockMs}`, clockMs: msg.clockMs, kind: kind === 'pulse' ? 'pulse' : 'studio', text: `${label}: ${text}`, source };
         pending.push({
           pt: playback.live.lastPt,
           apply: (s) => ({
@@ -418,6 +471,11 @@ export const useMatch = create<State & Actions>((set, get) => {
             ...(s.ghost ? {} : { caption: { text, kind: 'studio' as const, source, until: performance.now() + CAPTION_MS.studio } }),
           }),
         });
+        break;
+      }
+      case 'pulse': {
+        const pulse = msg.pulse;
+        pending.push({ pt: playback.live.lastPt, apply: () => ({ pulse }) });
         break;
       }
       case 'stats': {
@@ -548,14 +606,23 @@ export const useMatch = create<State & Actions>((set, get) => {
       playback.whatIf = undefined;
       const wasRunning = get().status === 'live' && !get().userPaused && !get().ghost?.live;
       if (wasRunning) get().send({ cmd: 'pause' });
-      set({ ghost: { moment, event, pt, live: false }, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false, userPaused: wasRunning || get().userPaused });
+      // Everything after a past moment has already been played, so its continuation is in hand.
+      const continuation: MatchEvent[] = [];
+      for (const e of events.values()) {
+        if (e.seq <= event.seq) continue;
+        if (e.t - event.t > COMPARE_MS || continuation.length >= 14 || e.type === 'kickoff' || e.type === 'half_time') break;
+        continuation.push(e);
+      }
+      playback.compare = undefined;
+      set({ ghost: { moment, event, pt, live: false, continuation }, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false, comparing: false, compareDone: false, userPaused: wasRunning || get().userPaused });
       autoSimulate(get().ghost!);
       if (!get().explanations[moment.eventId]) get().send({ cmd: 'explain', eventId: moment.eventId });
     },
     closeGhost: () => {
       const g = get().ghost;
       playback.whatIf = undefined;
-      set({ ghost: undefined, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false, sketching: false });
+      playback.compare = undefined;
+      set({ ghost: undefined, whatIf: {}, whatIfRequested: [], whatIfPlaying: undefined, whatIfDone: false, sketching: false, comparing: false, compareDone: false });
       if (!g) return;
       if (get().returnToReport) {
         set({ returnToReport: false, reportOpen: true });
@@ -576,7 +643,8 @@ export const useMatch = create<State & Actions>((set, get) => {
       const have = get().whatIf[key];
       if (play) {
         playback.whatIf = undefined;
-        set({ whatIfPlaying: key, whatIfDone: false });
+        playback.compare = undefined;
+        set({ whatIfPlaying: key, whatIfDone: false, comparing: false });
         if (have) startWhatIf(have);
       }
       if (!have && !get().whatIfRequested.includes(key)) {
@@ -587,6 +655,22 @@ export const useMatch = create<State & Actions>((set, get) => {
     stopWhatIf: () => {
       playback.whatIf = undefined;
       set({ whatIfPlaying: undefined, whatIfDone: false });
+    },
+    compare: () => {
+      const g = get().ghost;
+      const run = g && get().whatIf[optionKey(g.moment.ghost)];
+      if (!g || !run) return;
+      playback.whatIf = undefined;
+      const actual = timelineOf(g.event, [g.event, ...g.continuation]);
+      const ghost = timelineOf(g.event, run.replay);
+      const endPt = Math.min(COMPARE_MS, Math.max(actual.tl.lastPt, ghost.tl.lastPt)) + 1200;
+      playback.compare = { actual: actual.tl, ghost: ghost.tl, actualEvents: actual.timed, ghostEvents: ghost.timed, startWall: performance.now(), endPt, team: g.moment.team };
+      set({ comparing: true, compareDone: false, whatIfPlaying: undefined, sketching: false });
+    },
+    stopCompare: () => {
+      playback.compare = undefined;
+      playback.compareView = undefined;
+      set({ comparing: false, compareDone: false });
     },
     openReport: () => {
       const s = get();
@@ -652,6 +736,15 @@ export const useMatch = create<State & Actions>((set, get) => {
 export function sampleView(now: number): View | undefined {
   const s = useMatch.getState();
   const wi = playback.whatIf;
+  const cmp = playback.compare;
+  if (s.ghost && cmp) {
+    const pt = Math.min((now - cmp.startWall) * WHATIF_SPEED, cmp.endPt);
+    if (pt >= cmp.endPt && !s.compareDone) useMatch.setState({ compareDone: true });
+    playback.view = cmp.actual.sample(pt);
+    playback.compareView = cmp.ghost.sample(pt);
+    return playback.view;
+  }
+  playback.compareView = undefined;
   if (s.ghost && wi) {
     const pt = (now - wi.startWall) * WHATIF_SPEED;
     if (pt >= wi.endPt && !s.whatIfDone) useMatch.setState({ whatIfDone: true });

@@ -10,6 +10,7 @@ import { toAbsolute } from '../geometry';
 import { DecisionDetector } from '../ghost/ghost';
 import { LiveStats, type EventMetrics, type StatsSnapshot } from '../stats/interpret';
 import type { DecisionMoment, GeneratedMatch, MatchEvent, MatchMeta, OverlayCue, PlayerInfo, Side, Vec2 } from '../types';
+import { type PlayerAlert, PlayerTracker } from '../stats/tracker';
 
 /** Screen areas; `pitch_tags` is a separate layer so player tags can sit on top of a replay. */
 export type CueSlot = 'centre' | 'lower_third' | 'corner' | 'pitch' | 'pitch_tags';
@@ -206,19 +207,28 @@ export class CueBuilder {
   }
 
   /** Player tags during a replay sit on their own layer so they never fight the replay graphic. */
-  private tagAt(id: string, role: string, at: Vec2, startT: number, clockMs: number): OverlayCue | null {
+  private tagAt(id: string, role: string, at: Vec2, startT: number, clockMs: number, extra: Record<string, unknown> = {}, durationMs: number = DURATION.ghost): OverlayCue | null {
     const p = this.players.get(id);
     if (!p) return null;
     const cue: OverlayCue = {
       cueId: `${this.meta.matchId}-cue-${++this.n}`,
       startT: Math.round(startT),
-      durationMs: DURATION.ghost,
+      durationMs,
       kind: 'player_tag',
       priority: CUE_PRIORITY.player_tag,
-      payload: { slot: 'pitch_tags', clock: clock(clockMs), playerId: id, name: p.info.name, shortName: p.info.shortName, role: p.info.role, team: p.team, tag: role, position: at },
+      payload: { slot: 'pitch_tags', clock: clock(clockMs), playerId: id, name: p.info.name, shortName: p.info.shortName, role: p.info.role, team: p.team, tag: role, position: at, ...extra },
     };
     this.cues.push(cue);
     return cue;
+  }
+
+  /** Threshold tags: a sprint (km/h) or a distance milestone (km), attached to the player. */
+  onAlert(alert: PlayerAlert, e: MatchEvent): OverlayCue[] {
+    const s = e.freezeFrame.find((f) => f.playerId === alert.playerId);
+    if (!s) return [];
+    const at = round(toAbsolute(s.pos, e.team));
+    const c = this.tagAt(alert.playerId, alert.kind, at, e.t, alert.clockMs, { text: alert.text, value: alert.value, unit: alert.kind === 'sprint' ? 'km/h' : 'km' }, DURATION.tag);
+    return c ? [c] : [];
   }
 
   /** Commentary, studio lines and analysis text for the lower third. */
@@ -253,10 +263,12 @@ export function buildCueSheet(match: GeneratedMatch, commentary?: (e: MatchEvent
   const cues = new CueBuilder(match.meta);
   const stats = new LiveStats(match.meta);
   const detector = new DecisionDetector(match.meta);
+  const tracker = new PlayerTracker(match.meta);
   const panels = new Set<number>();
   for (const e of match.events) {
     const m = stats.push(e);
     cues.onEvent(e, m);
+    for (const alert of tracker.push(e)) cues.onAlert(alert, e);
     const line = commentary?.(e, m);
     if (line) cues.onNarrative(line, e.t, e.clockMs, 'commentary', 'template', e.id);
     const moment = detector.push(e);

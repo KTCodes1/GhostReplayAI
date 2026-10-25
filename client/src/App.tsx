@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { PitchScene } from './pitch/Scene';
 import { useMatch } from './store';
 import { GhostPanel } from './ui/GhostPanel';
-import { EventFooter, FreeCamHint, GoalBanner, Header, LowerThird, MatchBar, Scrubber, StageHeader, StartHeader } from './ui/Panels';
+import { CompareLabel, EventFooter, FreeCamHint, GoalBanner, Header, LowerThird, MatchBar, Scrubber, StageHeader, StartHeader } from './ui/Panels';
 import { ReportScreen } from './ui/Report';
 import { Sidebar } from './ui/Sidebar';
 
@@ -141,6 +141,7 @@ export function App() {
                 <GoalBanner />
                 <LowerThird />
                 <FreeCamHint />
+                <CompareLabel />
                 {status === 'error' && <div className="overlay-error">{error}</div>}
               </div>
             </div>

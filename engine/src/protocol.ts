@@ -1,6 +1,8 @@
 // WebSocket protocol between server and client. JSON, one message per frame.
 
+import type { Evidence } from './ghost/evidence';
 import type { PlayerDecisionRecord } from './ghost/ghost';
+import type { MatchPulse } from './stats/pulse';
 import type { SketchVerdict } from './ghost/sketch';
 import type { WhatIfResult } from './ghost/whatif';
 import type { DecisionDNA } from './report/dna';
@@ -16,12 +18,14 @@ export type ServerMsg =
   /** `playT` = playback time: match ms with long dead-ball gaps compressed. Animate against this. */
   | { type: 'event'; event: MatchEvent; metrics: EventMetrics; playT: number }
   /** Play freezes on this moment. The server holds the stream until resumed (or for `holdMs` wall ms if set). */
-  | { type: 'ghost'; moment: DecisionMoment; holdMs: number | null }
+  | { type: 'ghost'; moment: DecisionMoment; holdMs: number | null; continuation: MatchEvent[] }
   | { type: 'whatif'; eventId: string; result: WhatIfResult }
   /** Instant template commentary tied to an event (show it when the playhead reaches that event). */
   | { type: 'commentary'; eventId: string; text: string }
   /** Written analysis: why a ghost moment mattered, studio lines, half/full-time summaries. */
-  | { type: 'narrative'; kind: NarrativeKind; eventId?: string; clockMs: number; text: string; source: 'gemini' | 'azure' | 'template' }
+  | { type: 'narrative'; kind: NarrativeKind; eventId?: string; clockMs: number; text: string; source: 'gemini' | 'azure' | 'template'; evidence?: Evidence }
+  /** Rolling last-5-minute metrics (pressure, territory, threat, predictability) and the current spell. */
+  | { type: 'pulse'; pulse: MatchPulse }
   | { type: 'stats'; stats: StatsSnapshot; decisions: PlayerDecisionRecord[] }
   | { type: 'state'; paused: boolean; speed: number; fastForward: boolean }
   | { type: 'end'; recap: DecisionMoment[] }
@@ -39,7 +43,7 @@ export type ServerMsg =
   | { type: 'dna'; playerId: string; match: DecisionDNA | null; across: DecisionDNA | null }
   | { type: 'error'; message: string };
 
-export type NarrativeKind = 'ghost' | 'studio' | 'half_time' | 'full_time';
+export type NarrativeKind = 'ghost' | 'studio' | 'half_time' | 'full_time' | 'pulse';
 
 /** Viewer settings: who they're following (player focus mode). */
 export type ViewerPrefs = {

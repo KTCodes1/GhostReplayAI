@@ -564,3 +564,64 @@ button.pm .go { color: var(--ai-text); flex: none; }
 .moment-row small.conf { font-family: var(--font); }
 .rp-moments.genius .moment-row:hover .go { color: var(--genius-text); }
 .seen { font-family: var(--font); font-weight: 500; text-align: right; }
+
+/* ===================== evidence, fair play, what-if timeline, pulse, player tags ===================== */
+.gp-chips { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.gp-chips:empty { display: none; }
+
+/* Fair Play lens: clear miss = coral, reasonable = gold, not enough evidence = grey (green stays for genius) */
+.fairplay { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--line-2); border-left-width: 3px; background: var(--s2); max-width: 100%; }
+.fairplay b { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.fairplay span { font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
+.fairplay.clear { border-left-color: var(--actual); }
+.fairplay.clear b { color: var(--actual); }
+.fairplay.reasonable { border-left-color: var(--gold); }
+.fairplay.reasonable b { color: var(--gold); }
+.fairplay.insufficient { border-left-color: var(--muted); }
+.fairplay.insufficient b { color: var(--text-2); }
+.moment-row small.fp { font-family: var(--font); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--text-2); white-space: nowrap; }
+.moment-row small.fp.clear { color: var(--actual); border-color: rgba(239, 122, 107, 0.4); }
+.moment-row small.fp.reasonable { color: var(--gold); border-color: rgba(224, 180, 74, 0.4); }
+
+/* evidence panel */
+.evidence { border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; }
+.evidence-head { width: 100%; justify-content: space-between; background: var(--s2); border: none; border-radius: 0; padding: 6px 10px; font-weight: 400; }
+.evidence-head:hover:not(:disabled) { background: var(--s3); }
+.evidence-status { font-size: 11.5px; color: var(--ai-text); }
+.evidence.template .evidence-status { color: var(--text-2); }
+.evidence.insufficient .evidence-status { color: var(--gold); }
+.evidence-body { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+.claim { display: flex; flex-direction: column; gap: 4px; }
+.claim p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+.fact { display: block; font-size: 11.5px; line-height: 1.4; color: var(--text-2); padding-left: 10px; border-left: 2px solid var(--ai-line); }
+.fact b { font-size: 10.5px; color: var(--ai-text); margin-right: 4px; }
+.rejected { display: flex; flex-direction: column; gap: 3px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.rejected .eyebrow { color: var(--actual); }
+
+/* what-if timeline */
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; }
+.cmp-col { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-top: 2px solid var(--actual); }
+.cmp-col + .cmp-col { border-left: 1px solid var(--line-2); }
+.cmp-col.ghost { border-top-color: var(--ai); background: var(--ai-faint); }
+.cmp-col.found { border-top-color: var(--genius); }
+.cmp-col.obvious { border-top-color: #8b95a3; }
+.cmp-col .opt-label { font-size: 10px; line-height: 1.35; }
+.cmp-col.ghost .opt-label { color: var(--ai-text); }
+.cmp-col.found .opt-label { color: var(--genius-text); }
+.cmp-col.obvious .opt-label { color: var(--text-2); }
+.cmp-status { font-size: 12px; font-weight: 600; }
+.cmp-progress { height: 3px; background: var(--chip); }
+.cmp-progress span { display: block; height: 100%; background: var(--ai); transition: width 0.1s linear; }
+.compare-label { position: absolute; top: 12px; left: 12px; z-index: 30; display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; background: rgba(15, 18, 22, 0.94); border: 1px solid var(--ai-line); border-radius: var(--r); font-size: 11.5px; color: var(--text-2); }
+.compare-label b { font-size: 10.5px; letter-spacing: 0.08em; color: var(--ai-text); }
+
+/* match pulse */
+.stat-group.pulse { padding: 12px; background: var(--s2); border-radius: var(--r); }
+.spell { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 12.5px; font-weight: 600; }
+.spell-line { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.tl-tag.pulse { color: var(--focus); }
+
+/* real-time player tags (sprint / distance) */
+.tag-alert { font-size: 11px; color: var(--text); border-color: var(--line-2); }
+.tag-alert.sprint { border-color: var(--gold); }
+.tag-alert.distance { border-color: var(--focus); }

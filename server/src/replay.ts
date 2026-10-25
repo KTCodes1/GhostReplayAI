@@ -23,9 +23,12 @@ import {
   type GhostAnalysis,
   type MatchReport,
   type Vec2,
+  type MatchEvent,
+  PlayerTracker,
+  PulseTracker,
+  isObviousChoice,
 } from '@ghost/engine';
-import type { AskResult } from './ai/askAI';
-import { Narrator } from './narrative';
+import { type CheckedResult, Narrator } from './narrative';
 import { tallyFor, validation, vote } from './votes';
 
 /** Other matches for Decision DNA "across the last five", cached per club (deterministic). */
@@ -45,6 +48,8 @@ export type ReplayOptions = {
 
 export const DEFAULT_REPLAY: ReplayOptions = { speed: 8, holdMs: null, maxGapMs: 6000, statsEveryEvents: 15 };
 const MAX_SPEED = 120;
+const CONTINUATION_MS = 6000;
+const SPELL_GAP_MS = 8 * 60_000;
 
 export class MatchReplay {
   private i = 0;
@@ -59,6 +64,10 @@ export class MatchReplay {
   private fastForward = false;
   private stopped = false;
   private stats: LiveStats;
+  private pulse = new PulseTracker();
+  private tracker: PlayerTracker;
+  /** Match pulse spells are narrated at most this often, and only when the spell changes. */
+  private lastSpell: { key: string; clockMs: number } | undefined;
   private detector: DecisionDetector;
   private opts: ReplayOptions;
   private narrator: Narrator;
@@ -77,6 +86,7 @@ export class MatchReplay {
   ) {
     this.opts = { ...DEFAULT_REPLAY, ...opts };
     this.stats = new LiveStats(match.meta);
+    this.tracker = new PlayerTracker(match.meta);
     this.detector = new DecisionDetector(match.meta);
     this.narrator = new Narrator(match.meta);
     this.cues = new CueBuilder(match.meta);
@@ -87,11 +97,11 @@ export class MatchReplay {
   }
 
   /** Send AI text when it arrives (unless the viewer has gone). */
-  private narrate(kind: 'ghost' | 'studio' | 'half_time' | 'full_time', clockMs: number, job: Promise<AskResult>, eventId?: string) {
+  private narrate(kind: 'ghost' | 'studio' | 'half_time' | 'full_time' | 'pulse', clockMs: number, job: Promise<CheckedResult>, eventId?: string) {
     const t = this.match.events[Math.max(0, this.i - 1)]!.t;
     job.then((r) => {
       if (this.stopped) return;
-      this.send({ type: 'narrative', kind, clockMs, text: r.text, source: r.source, ...(eventId ? { eventId } : {}) });
+      this.send({ type: 'narrative', kind, clockMs, text: r.text, source: r.source, ...(eventId ? { eventId } : {}), ...(r.evidence ? { evidence: r.evidence } : {}) });
       this.sendCues(this.cues.onNarrative(r.text, t, clockMs, kind === 'studio' ? 'studio' : 'analysis', r.source, eventId));
     });
   }
@@ -124,7 +134,8 @@ export class MatchReplay {
 
   explain(eventId: string) {
     const m = this.moments.get(eventId);
-    if (m) this.narrate('ghost', m.clockMs, this.narrator.explainMoment(m), m.eventId);
+    const e = this.match.events.find((x) => x.id === eventId);
+    if (m && e) this.narrate('ghost', m.clockMs, this.narrator.explainMoment(m, e), m.eventId);
   }
 
   private resetClock() {
@@ -195,6 +206,9 @@ export class MatchReplay {
     const cues = this.cues.onEvent(e, metrics);
     if (line) cues.push(...this.cues.onNarrative(line, e.t, e.clockMs, 'commentary', 'template', e.id));
     const moment = this.detector.push(e);
+    const judged = this.detector.analyses().at(-1);
+    this.pulse.push(e, metrics, judged && judged.event === e ? isObviousChoice(judged) : undefined);
+    for (const alert of this.tracker.push(e)) cues.push(...this.cues.onAlert(alert, e));
     if (moment) cues.push(...this.cues.onMoment(moment, e));
     const panelAt = STATS_PANEL_MINUTES.find((x) => Math.floor(e.clockMs / 60000) >= x && Math.floor(e.clockMs / 60000) < x + 5 && !this.panelsDone.has(x));
     if (panelAt !== undefined || e.type === 'half_time') {
@@ -209,6 +223,7 @@ export class MatchReplay {
     const notable = e.type === 'shot' || e.type === 'half_time' || e.type === 'full_time' || e.type === 'kickoff';
     if (this.i % this.opts.statsEveryEvents === 0 || notable) {
       this.send({ type: 'stats', stats: this.stats.snapshot(), decisions: this.detector.playerRecords() });
+      this.sendPulse(e.clockMs);
     }
 
     // Studio lines and summaries (skipped while fast-forwarding past them).
@@ -234,11 +249,11 @@ export class MatchReplay {
       this.holding = true;
       this.moments.set(moment.eventId, moment);
       this.current = moment;
-      this.send({ type: 'ghost', moment, holdMs: this.opts.holdMs });
+      this.send({ type: 'ghost', moment, holdMs: this.opts.holdMs, continuation: this.continuationAfter(this.i - 1) });
       // The crowd's picks from earlier sessions (shown only after the viewer votes).
       const prior = tallyFor(this.match.meta.matchId, moment.eventId);
       if (prior.total) this.send({ type: 'votes', eventId: moment.eventId, ...prior });
-      this.narrate('ghost', moment.clockMs, this.narrator.explainMoment(moment), moment.eventId);
+      this.narrate('ghost', moment.clockMs, this.narrator.explainMoment(moment, e), moment.eventId);
       this.sendState();
       clearTimeout(this.timer);
       const hold = this.opts.holdMs;
@@ -257,6 +272,32 @@ export class MatchReplay {
     }
     const due = this.clockWall + (this.playT + this.gapMs(this.i - 1) - this.clockPt) / this.opts.speed;
     this.schedule(Math.max(0, due - performance.now()));
+  }
+
+  /** What really happened next (up to 6 s of match time), for the side-by-side what-if timeline. */
+  private continuationAfter(index: number): MatchEvent[] {
+    const ev = this.match.events;
+    const start = ev[index]!;
+    const out: MatchEvent[] = [];
+    for (let k = index + 1; k < ev.length && out.length < 14; k++) {
+      const e = ev[k]!;
+      if (e.t - start.t > CONTINUATION_MS || e.type === 'kickoff' || e.type === 'half_time' || e.type === 'full_time') break;
+      out.push(e);
+    }
+    return out;
+  }
+
+  /** Every few events: the rolling pulse, and an evidence-checked line when a new spell starts. */
+  private sendPulse(clockMs: number) {
+    const p = this.pulse.snapshot();
+    this.send({ type: 'pulse', pulse: p });
+    const spell = p.spell;
+    if (!spell || this.fastForward) return;
+    const key = `${spell.code}:${spell.team ?? ''}`;
+    if (this.lastSpell && (this.lastSpell.key === key || clockMs - this.lastSpell.clockMs < SPELL_GAP_MS)) return;
+    if (clockMs < 6 * 60_000) return; // the window needs filling first
+    this.lastSpell = { key, clockMs };
+    this.narrate('pulse', clockMs, this.narrator.pulseLine(spell, p));
   }
 
   /** Match ms between event i and i+1, with dead-ball gaps capped. */

@@ -3,9 +3,10 @@
 // factors → every option → pundit sketch. Genius moments flip it: what they found vs the obvious ball.
 // Otherwise it shows the live insights feed.
 
-import { type DecisionMoment, type GhostOption, type GhostTree, type WhatIfOutcome, type WhatIfResult, hashSeed, optionKey } from '@ghost/engine';
-import { useState } from 'react';
-import { useMatch } from '../store';
+import { type DecisionMoment, type Evidence, type GhostOption, type GhostTree, type WhatIfOutcome, type WhatIfResult, hashSeed, optionKey } from '@ghost/engine';
+import { useEffect, useState } from 'react';
+import { WHATIF_SPEED, playback, useMatch } from '../store';
+import { type Readout, readout } from './compare';
 import { choicePhrase, minute, pct, playerLookup, signed, teamColor } from './format';
 import { AiBadge, TimelineTab } from './Panels';
 
@@ -318,6 +319,122 @@ function SketchSection({ moment }: { moment: DecisionMoment }) {
   );
 }
 
+const EVIDENCE_STATUS: Record<Evidence['status'], string> = {
+  verified: 'Every claim checked against the engine',
+  regenerated: 'Checked: a draft was rejected and rewritten',
+  template: 'Written straight from the engine facts',
+  insufficient: 'Not enough evidence to judge',
+};
+
+/** "Why we think this": each claim in the explanation and the engine facts it rests on. */
+function EvidencePanel({ evidence }: { evidence: Evidence }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`evidence ${evidence.status}`}>
+      <button className="evidence-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="evidence-status">{EVIDENCE_STATUS[evidence.status]}</span>
+        <span className="hint">
+          {evidence.checked} facts · {open ? 'Hide' : 'Why we think this'}
+        </span>
+      </button>
+      {open && (
+        <div className="evidence-body">
+          {evidence.claims.map((c, i) => (
+            <div key={i} className="claim">
+              <p>{c.text}</p>
+              {c.facts.map((f) => (
+                <span key={f.id} className="fact">
+                  <b className="mono">{f.id}</b> {f.text}
+                </span>
+              ))}
+            </div>
+          ))}
+          {evidence.rejected.length > 0 && (
+            <div className="rejected">
+              <span className="eyebrow">Rejected before you saw it</span>
+              {evidence.rejected.map((r, i) => (
+                <span key={i}>{r.charAt(0).toUpperCase() + r.slice(1)}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What-if timeline: the real next seconds and the ghost run, playing together, with running numbers. */
+function CompareSection({ moment, name }: { moment: DecisionMoment; name: (id?: string) => string }) {
+  const comparing = useMatch((s) => s.comparing);
+  const done = useMatch((s) => s.compareDone);
+  const meta = useMatch((s) => s.meta)!;
+  const ready = useMatch((s) => !!s.whatIf[optionKey(moment.ghost)]);
+  const { compare, stopCompare } = useMatch.getState();
+  const [now, setNow] = useState<{ a: Readout; g: Readout; progress: number } | null>(null);
+  useEffect(() => {
+    if (!comparing) return setNow(null);
+    const tick = () => {
+      const c = playback.compare;
+      if (!c) return;
+      const pt = Math.min((performance.now() - c.startWall) * WHATIF_SPEED, c.endPt);
+      setNow({ a: readout(c.actualEvents, pt, c.team, meta), g: readout(c.ghostEvents, pt, c.team, meta), progress: pt / c.endPt });
+    };
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [comparing, meta]);
+  const genius = moment.kind === 'genius';
+  const col = (label: string, cls: string, r?: Readout) => (
+    <div className={`cmp-col ${cls}`}>
+      <span className="opt-label">{label}</span>
+      <div className="opt-metric">
+        <span>Threat built (xT)</span>
+        <b>{r ? (r.xT >= 0 ? '+' : '') + r.xT.toFixed(3) : '…'}</b>
+      </div>
+      <div className="opt-metric">
+        <span>Chance created (xG)</span>
+        <b>{r ? r.xG.toFixed(2) : '…'}</b>
+      </div>
+      <span className="cmp-status">{r?.status ?? ''}</span>
+    </div>
+  );
+  return (
+    <section className="gp-section">
+      <div className="gp-section-head">
+        <span className="eyebrow">What-if timeline</span>
+        {comparing ? (
+          <div className="btn-row">
+            <button onClick={compare}>Replay</button>
+            <button className="btn-quiet" onClick={stopCompare}>
+              Stop
+            </button>
+          </div>
+        ) : (
+          <button className="btn-ai" disabled={!ready} onClick={compare} title="Play what really happened and the ghost run at the same time">
+            {ready ? 'Watch both' : 'Simulating…'}
+          </button>
+        )}
+      </div>
+      {comparing ? (
+        <>
+          <div className="cmp-grid">
+            {col(`WHAT HAPPENED · ${actionLabel(moment.actual, name)}`, genius ? 'found' : 'actual', now?.a)}
+            {col(`GHOST RUN · ${actionLabel(moment.ghost, name)}`, genius ? 'obvious' : 'ghost', now?.g)}
+          </div>
+          <div className="cmp-progress">
+            <span style={{ width: `${(now?.progress ?? 0) * 100}%` }} />
+          </div>
+          <p className="gp-note">
+            Plausible simulation, not a prediction: one of 50 runs with defenders reacting. Solid players are what happened; translucent players are the ghost run.{done ? ' Finished.' : ''}
+          </p>
+        </>
+      ) : (
+        <p className="gp-note">Play the real next few seconds and the {genius ? 'obvious ball' : 'better option'} side by side on the pitch, with the threat each builds.</p>
+      )}
+    </section>
+  );
+}
+
 function LiveInsights() {
   return (
     <aside className="rightcol" aria-label="Live insights">
@@ -396,7 +513,15 @@ export function GhostPanel() {
             </span>
           </div>
         </div>
-        {state && <span className="state-chip">{state}</span>}
+        <div className="gp-chips">
+          {moment.fairPlay && !guessing && (
+            <span className={`fairplay ${moment.fairPlay.verdict}`} title={`Fair Play lens: ${moment.fairPlay.why}`}>
+              <b>{moment.fairPlay.label}</b>
+              <span>{moment.fairPlay.why}</span>
+            </span>
+          )}
+          {state && <span className="state-chip">{state}</span>}
+        </div>
       </div>
 
       <div className="gp-body">
@@ -419,6 +544,7 @@ export function GhostPanel() {
               ) : (
                 <p className="gp-why pending">Analysing the moment…</p>
               )}
+              {why?.evidence && <EvidencePanel evidence={why.evidence} />}
             </section>
 
             <section className="gp-section">
@@ -507,6 +633,8 @@ export function GhostPanel() {
                 </>
               )}
             </section>
+
+            <CompareSection moment={moment} name={name} />
 
             <OutcomeTree moment={moment} name={name} />
 

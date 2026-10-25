@@ -123,6 +123,9 @@ function PlayerCard({ p, meta, variant }: { p: PlayerReport; meta: MatchMeta; va
   );
 }
 
+/** Fair Play lens, short form for the decision rows. */
+const FAIR_SHORT = { clear: 'Clear miss', reasonable: 'Reasonable', insufficient: 'Not enough evidence' } as const;
+
 /** The what-if scoreline: the headline numbers, side by side. */
 function WhatIfPanel({ report, meta }: { report: MatchReport; meta: MatchMeta }) {
   const w = report.whatIfScore;
@@ -286,7 +289,7 @@ export function ReportScreen() {
                 </span>
                 <span className="delta">
                   {signed(m.evLost)}
-                  {m.confidence && <small className={`conf ${m.confidence.level}`}>{m.confidence.level}</small>}
+                  {m.fairPlay && <small className={`fp ${m.fairPlay.verdict}`} title={m.fairPlay.why}>{FAIR_SHORT[m.fairPlay.verdict]}</small>}
                 </span>
                 <span className="go">Replay</span>
               </button>
