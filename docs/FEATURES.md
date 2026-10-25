@@ -15,7 +15,10 @@ npm run dev          # server on :8787, app on http://localhost:5173
 
 | Shot you want | Open this | Then |
 | --- | --- | --- |
-| A ghost moment, straight away | `http://localhost:5173/?seed=7&speed=8&autostart&jump` | Freezes at 0:27. Theo Dunmore shoots (blocked); the engine says the pass to Moreau was on, on the edge of his vision. **Clear call.** |
+| A ghost moment, straight away | `http://localhost:5173/?seed=7&speed=8&autostart&jump` | Freezes at 0:27. Theo Dunmore shoots (blocked); the engine says the pass to Moreau was on, but on the edge of his vision, so the Fair Play lens says **Reasonable alternative**. Open **Why we think this** under the explanation to see every claim with its facts. |
+| Clear opportunity missed | same link, press **Next moment** twice | 18', Mensah passes to Yilmaz when a pass to Rasmussen would have taken 4 defenders out: **Clear opportunity missed**. |
+| What-if timeline | at any freeze, **Watch both** | The real next seconds (solid players) and the ghost run (translucent players) play together, with running xT / xG. |
+| Match pulse and player tags | `...?seed=7&speed=20&autostart&holdMs=300` | Stats tab, **Match pulse**, after a few minutes; sprint tags ("Kowalski · 27 km/h") pop up over players. |
 | A moment of genius | `http://localhost:5173/?seed=11&speed=20&autostart&jump` | First freeze is a miss at 1'. Press **Next moment** in the panel: 12', Tariq Halloran drives forward when the obvious ball was a pass to Achterberg. Green "Genius moment". |
 | "You're the player" | Any match, click **You're the player** in the header | At the next freeze, pick A–E before the reveal. |
 | Pundit sketch | At any freeze, **Draw an option** in the panel | Click the pitch where the ball should go. |
@@ -39,7 +42,8 @@ Decision-analysis tools exist, and analysts and players criticise them for the s
 | **One step only**: patient build-up gets punished | **Two-step look-ahead**: a pass is also worth the best next ball it sets up, with defenders closing down. | "Sets up a shot next" on cards; "it would have set up a pass to X next" in factors |
 | **Defenders don't react**: ghost outcomes are too optimistic | **Reactive simulation**: when the ghost is played out, defenders react after about 0.3 s, accelerate realistically, reach out a leg, and race the receiver to the ball. Nothing is forced to come off. | "50 runs each, defenders reacting" on the outcome tree |
 | **No context**: a risky ball isn't right at 1-0 up in the 89th | **Game state** scales risk: protecting a late lead makes losing the ball cost up to 1.9× as much; chasing the game makes it cost less. | Chip under the player name, e.g. "protecting a 2-0 lead, 83'" |
-| **False certainty**: close calls shown as mistakes | **Confidence levels** combine the model's margin with the simulation's margin. *Clear* and *likely* calls freeze the match; **close calls never do**. | "Clear call 96%" badge on every moment; badges in the report |
+| **False certainty**: close calls shown as mistakes | **Confidence** (how sure the engine is that the other option was better) combines the model's margin with the simulation's margin: high, medium or low. Low-confidence moments **never freeze the match**. On top of that, the **Fair Play lens** gives every miss a plain verdict: *Clear opportunity missed*, *Reasonable alternative*, or *Not enough evidence to judge*. | "High confidence 96%" badge and the Fair Play verdict under the player's name; verdicts on the report's decision rows |
+| **AI that makes things up** | **Evidence-checked AI**: the AI only sees the engine's numbered facts, must cite the facts behind every claim, and its answer is checked before anyone sees it (every number must match a fact, every player named must be in the facts, and contradictions like "unmarked" when a defender was 2 m away are caught). Rejected answers are rewritten once, then replaced by an explanation written straight from the facts. | **Why we think this** under each explanation: each claim with its facts, and any rejected drafts |
 | **It's only negative** | **Genius moments**: the hard, right ball that most players wouldn't find (green). | Green diamonds on the scrubber; "Genius moment" panel; "Moments of genius" in the report |
 | **Numbers without reasons** | **Cause-based reasons**: which defender stepped out to press and left the gap, who was already running, where the overload was, the high line, what the next ball would have been. The AI is told to name the cause, not just the number. | "Key factors" list and the AI "Why it mattered" text |
 
@@ -70,6 +74,36 @@ A pundit draws their own alternative on the pitch and the engine scores it insta
 ### Ghost trees
 Every option is shown as **branching probabilities**, not a single answer: "78% comes off → 100% shot · 21% goal; 22% cut out → 0% counter-attack shot against". On the pitch, faint branches show where the follow-up shot comes from and where the ball is lost, with the counter-attack arrow.
 *Where:* panel "Outcome tree"; branch tags on the pitch ("12% shot", "22% cut out").
+
+### Evidence-checked AI ("why we think this")
+Every moment's explanation is built from a **numbered fact sheet** taken from the engine: who chose what, the chances, the value left, the simulation result, what the player could see, the exact distance from the nearest defender to each receiver (from the freeze frame), defenders in the passing lane, the game state, confidence, the Fair Play verdict, and the cause-based reasons. The AI must answer in JSON, listing every claim with the fact ids it relies on, and a validator then checks:
+- every number in the text matches a number in the facts;
+- every player named appears in the facts;
+- no contradictions: "unmarked" or "free" when a defender was under 3 m away, "saw it" when the option was behind them, offside when nobody was.
+
+A rejected draft is regenerated once with the problems spelled out; if it fails again, the viewer gets an explanation written straight from the facts. When the Fair Play lens says there isn't enough evidence, the explanation says exactly that instead of inventing a reason. Studio lines, half- and full-time summaries, pulse lines, sketch verdicts and player one-liners are also number-checked against their facts.
+In a real trial, 5 of 5 Gemini explanations passed first time, each claim traceable to its facts.
+*Where:* **Why we think this** under "Why it mattered": the status (for example "Every claim checked against the engine · 18 facts"), each claim with its facts, and any rejected drafts.
+
+### Fair Play lens
+One plain verdict on every missed opportunity, so fairness is explicit on screen:
+- **Clear opportunity missed**: in plain view, playable for this player, worth at least 0.03, and high confidence.
+- **Reasonable alternative**: defensible either way, with the reason ("it was on the edge of their vision", "it was hard to execute", "the gain was small").
+- **Not enough evidence to judge**: the model and the simulation don't clearly separate the options.
+
+*Where:* under the player's name in the ghost panel; short labels on the report's decision rows.
+
+### What-if timeline
+From any frozen moment, **Watch both** plays what really happened over the next few seconds (the real players) and the ghost run (translucent players in the same kit colours, with a translucent ball) **at the same time**. Live readouts track the threat each version builds (xT), the chance it creates (xG), and whether it kept the ball, scored, or lost it. It's clearly labelled *"Plausible simulation, not a prediction: one of 50 runs with defenders reacting."* This is the money shot for the video.
+*Where:* ghost panel, **What-if timeline → Watch both**; the label on the pitch explains solid vs translucent.
+
+### Match pulse
+Rolling metrics over the last five minutes for each side: **pressing** (per minute), **territory** (share of actions in the opponent's half), **threat** (xT + xG) and **predictability** (share of decisions that were the safe, obvious choice). The engine names the spell it adds up to: *sustained pressure*, *sustained pressure, but passing is becoming predictable*, *control without penetration*, *pressing high and pinning them back*, or *end to end*. An evidence-checked AI line follows when a new spell starts (at most every 8 minutes).
+*Where:* Stats tab, **Match pulse** (from minute 3); PULSE items in the timeline and live insights.
+
+### Real-time player tags
+Name tags pop up over players when a threshold is hit: a **sprint** ("Kowalski · 27 km/h", the top 1% of speeds) or a **distance milestone** ("Moreau · 9.0 km covered, most on the pitch" at 3, 6, 9 and 12 km). About 10–20 a match, and they're also in the overlay cue feed for broadcasters.
+*Where:* on the pitch during play; `player_tag` cues with `tag: sprint | distance`.
 
 ### Validation
 The engine shows how far to trust it:
@@ -115,11 +149,11 @@ The engine shows how far to trust it:
 ## 7. A 3-minute video outline (suggestion)
 
 1. **0:00–0:20, the hook.** Live match on the 3D pitch, then a freeze. "What if the AI could see the pass he missed?"
-2. **0:20–0:50, a ghost moment** (seed 7, 0:27). Vision cone, better option on the edge of his vision, "Clear call", AI "why it mattered", **Simulate 50 runs**, the ghost tree.
-3. **0:50–1:15, fair judging.** Name the critics' points and show the answers on screen: what he could see, where players would be when the ball arrived, offside, game state, confidence.
+2. **0:20–0:50, a ghost moment** (seed 7, 0:27). Vision cone, better option on the edge of his vision, the Fair Play verdict, the AI "why it mattered", then **Watch both**: what happened against the ghost run, side by side.
+3. **0:50–1:15, fair and honest.** Name the critics' points and show the answers on screen: what he could see, where players would be when the ball arrived, offside, game state, confidence, Fair Play. Open **Why we think this**: "every claim is checked against the engine's facts".
 4. **1:15–1:35, genius** (seed 11, 12'). "It's not just about mistakes."
 5. **1:35–2:00, "You're the player".** Pick, reveal, crowd. Then the pundit sketch: draw an arrow and the engine scores it.
-6. **2:00–2:30, the report.** What-if scoreline, Decision DNA, validation numbers.
+6. **2:00–2:30, live and the report.** Match pulse and sprint tags during play, then the report: what-if scoreline, Decision DNA, validation numbers.
 7. **2:30–3:00, under the hood.** Five-stage pipeline, overlay cue JSON, Azure OpenAI via Foundry, GitHub, synthetic data.
 
 ---
@@ -132,3 +166,4 @@ The engine shows how far to trust it:
 | `15fa135` | Engine: vision cone, moving world, execution, game state, look-ahead, reactive simulation, confidence, causes, genius, DNA, what-if scoreline, sketch |
 | `bd7341e` | Server: fan votes and validation, sketch scoring, Decision DNA, genius-aware AI prompts |
 | `361bcb0` | Client: vision cone, genius, predict mode, sketch, ghost trees, DNA, report panels |
+| `d7fe600` + | Evidence-checked AI, Fair Play lens, what-if timeline, match pulse, sprint and distance tags (branch `evidence-and-pulse`) |

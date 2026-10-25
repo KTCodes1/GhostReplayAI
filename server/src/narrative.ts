@@ -180,7 +180,7 @@ export class Narrator {
     const team = spell.team ? this.club(spell.team) : 'Both sides';
     const facts = [`Minute ${this.minute(pulse.clockMs)}, the last 5 minutes.`, `Spell: ${team}: ${spell.label.toLowerCase()}.`, ...spell.facts.map(club)];
     const fallback = `${team}: ${spell.label.toLowerCase()}. ${club(spell.facts[0] ?? '')}`.trim();
-    const prompt = `${facts.join('\n')}\n\nAs the studio analyst, describe this spell of the match in one or two sentences (under 35 words), using only these facts. Write numbers exactly as given.`;
+    const prompt = `${facts.join('\n')}\n\nAs the studio analyst, sum up this spell of the match in one punchy sentence (under 28 words), like a TV pundit would say it. Use at most two numbers, written exactly as in the facts, and only these facts.`;
     return this.verified(askAI(prompt, { system: this.system(), fallback, maxTokens: 140, priority: 'low', cacheKey: `pulse:${this.meta.matchId}:${Math.floor(pulse.clockMs / 60000)}:${spell.code}` }), facts, fallback);
   }
 

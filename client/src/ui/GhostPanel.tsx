@@ -448,7 +448,8 @@ function LiveInsights() {
   );
 }
 
-const CONFIDENCE: Record<string, string> = { clear: 'Clear call', likely: 'Likely', close: 'Close call' };
+/** How sure the engine is that the other option was better (Fair Play says whether that's on the player). */
+const CONFIDENCE: Record<string, string> = { clear: 'High confidence', likely: 'Medium confidence', close: 'Low confidence' };
 
 export function GhostPanel() {
   const ghost = useMatch((s) => s.ghost);

@@ -288,12 +288,15 @@ export function Split({ home, away, total = home + away }: { home: number; away:
   );
 }
 
+const PULSE_FROM_MS = 3 * 60_000;
+
 /** Match Pulse: how the last five minutes have felt, side by side, and the spell it adds up to. */
 function PulsePanel() {
   const pulse = useMatch((s) => s.pulse);
   const meta = useMatch((s) => s.meta)!;
   const line = useMatch((s) => s.ticker.find((t) => t.kind === 'pulse'));
-  if (!pulse) return null;
+  // The window needs a few minutes of play before the numbers mean anything.
+  if (!pulse || pulse.clockMs < PULSE_FROM_MS) return null;
   const { home: h, away: a } = pulse;
   const vars = { ['--home' as string]: teamColor(meta, 'home'), ['--away' as string]: teamColor(meta, 'away') };
   const pctV = (v: number) => `${Math.round(v * 100)}%`;

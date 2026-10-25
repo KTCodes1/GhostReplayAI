@@ -23,6 +23,7 @@ export type Evidence = {
 };
 
 const OUTCOME_WORDS: Record<string, string> = { success: 'came off', fail: 'failed', goal: 'went in', saved: 'was saved', blocked: 'was blocked', off_target: 'went off target' };
+const CONFIDENCE_WORDS = { clear: 'high', likely: 'medium', close: 'low' } as const;
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 const VIS: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'in their line of sight', peripheral: 'on the edge of their vision', behind: 'behind them, out of sight' };
 
@@ -71,7 +72,7 @@ export function momentFacts(m: DecisionMoment, e: MatchEvent, roster: Roster): E
     }).length;
     facts.push(`Defenders within 2.5 m of the passing lane to ${name(o.targetPlayerId)}: ${inLane}.`);
   }
-  if (m.confidence) facts.push(`How sure the engine is: a ${m.confidence.level} call (${pct(m.confidence.score)}).`);
+  if (m.confidence) facts.push(`How sure the engine is that the other option was better: ${CONFIDENCE_WORDS[m.confidence.level]} confidence (${pct(m.confidence.score)}).`);
   if (m.fairPlay) facts.push(`Fair Play verdict: ${m.fairPlay.label} (${m.fairPlay.why}).`);
   if (m.gameState && m.gameState.code !== 'open') facts.push(`Game state: ${m.gameState.label}.`);
   if (!m.ghost.offside && !m.actual.offside) facts.push('Nobody in these options was offside.');
