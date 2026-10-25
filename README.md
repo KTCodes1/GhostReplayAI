@@ -4,6 +4,10 @@ An AI that watches a (synthetic) football match live, freezes the moments where 
 
 Built for **Inside the Game: Developer Hackathon** (Microsoft × Premier League). Synthetic data only: invented clubs and players.
 
+It judges players fairly: only for options they could **see** (vision cone), on where everyone would be when the ball **arrives**, for what they can **execute**, two steps deep, in the **game state**, with **confidence levels** and a simulation check where defenders react. It also celebrates **genius moments**, lets fans play **"You're the player"**, scores **pundit sketches**, builds each player's **Decision DNA**, and reports a **what-if scoreline** and **validation** numbers.
+
+**Every feature, with where to see it and how to demo it: [docs/FEATURES.md](docs/FEATURES.md).**
+
 ## Run locally
 
 ```bash
@@ -11,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173, pick clubs/seed, and press **Kick off**.
+Open http://localhost:5173, pick clubs/seed, and press **Start live analysis**.
 Shortcut: http://localhost:5173/?seed=7&speed=8&autostart&jump jumps straight to the first ghost moment.
 
 ## Packages
