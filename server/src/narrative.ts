@@ -11,6 +11,9 @@ import {
   type Side,
   type StatsSnapshot,
   type MatchReport,
+  type GhostAnalysis,
+  type SketchVerdict,
+  type WhatIfResult,
   hashSeed,
 } from '@ghost/engine';
 import { type AskResult, askAI } from './ai/askAI';
@@ -93,8 +96,9 @@ export class Narrator {
     return `a pass to ${this.name(o.targetPlayerId)} (${pct(o.pSuccess)} chance to arrive${bypass})`;
   }
 
-  /** Why did this ghost moment matter? */
+  /** Why did this ghost moment matter? (Or, for a genius moment, what made it special?) */
   explainMoment(mo: DecisionMoment): Promise<AskResult> {
+    if (mo.kind === 'genius') return this.explainGenius(mo);
     const p = this.players.get(mo.playerId);
     const who = p?.info.shortName ?? 'The player';
     const outcome = mo.actualOutcome ? ` It ${outcomeWord(mo.actualOutcome)}.` : '';
@@ -115,12 +119,62 @@ export class Narrator {
       mo.ghost.targetPlayerId ? `Who would have received it: ${this.profile(mo.ghost.targetPlayerId)}` : '',
       `Value left on the table: ${mo.evLost.toFixed(3)} (expected-value units, goal probability).`,
       mo.sim ? `Simulation check over ${mo.sim.rollouts} runs: better option ${mo.sim.ghost.toFixed(3)} xG per attempt vs actual ${mo.sim.actual.toFixed(3)}.` : '',
+      mo.ghost.visibility ? `What ${who} could see: the better option was ${visibilityWords(mo.ghost.visibility)}.` : '',
+      mo.confidence ? `How sure the engine is: ${mo.confidence.level} call (${Math.round(mo.confidence.score * 100)}%).` : '',
+      ...mo.reasons.map((r) => `Fact${r.about === 'context' ? ' (context)' : ''}: ${r.text}.`),
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const prompt = `${facts}\n\nIn two short sentences, as a TV analyst, explain why this moment mattered and what the better option was. Name the cause (the gap, the run, the overload) rather than just the numbers. Be fair: if it was on the edge of their vision or hard to execute, say so. Keep it under 50 words.`;
+    return askAI(prompt, { system: this.system(), fallback, maxTokens: 200, cacheKey: `ghost:${mo.eventId}` });
+  }
+
+  /** A genius moment: what did they see that others wouldn't? */
+  private explainGenius(mo: DecisionMoment): Promise<AskResult> {
+    const p = this.players.get(mo.playerId);
+    const who = p?.info.shortName ?? 'The player';
+    const found = mo.reasons.filter((r) => r.about === 'actual').map((r) => r.text);
+    const fallback =
+      `${who} found ${this.describe(mo.actual)} when most players would have taken ${this.describe(mo.ghost)}.` +
+      (found.length ? ` ${found[0]!.charAt(0).toUpperCase()}${found[0]!.slice(1)}.` : '') +
+      (mo.sim ? ` Across ${mo.sim.rollouts} simulations it created ${mo.sim.actual.toFixed(3)} xG per attempt against ${mo.sim.ghost.toFixed(3)} for the obvious ball.` : '');
+    const facts = [
+      `Match: ${this.meta.home.name} vs ${this.meta.away.name}, minute ${this.minute(mo.clockMs)}.`,
+      `Player: ${p?.info.name} (${p?.info.role}, ${this.club(mo.team)}). ${this.profile(mo.playerId)}`,
+      `What they did (it came off): ${this.describe(mo.actual)}${mo.actual.visibility ? `, ${visibilityWords(mo.actual.visibility)}` : ''}.`,
+      `The obvious, safer option most players take: ${this.describe(mo.ghost)}.`,
+      mo.evGained ? `Extra threat reached over the obvious ball: ${mo.evGained.toFixed(3)} (xT, goal probability).` : '',
+      mo.sim ? `Simulation over ${mo.sim.rollouts} runs: their choice ${mo.sim.actual.toFixed(3)} xG per attempt vs the obvious ball ${mo.sim.ghost.toFixed(3)}.` : '',
       ...mo.reasons.map((r) => `Fact: ${r.text}.`),
     ]
       .filter(Boolean)
       .join('\n');
-    const prompt = `${facts}\n\nIn two short sentences, as a TV analyst, explain why this moment mattered and what the better option was. Keep it under 50 words.`;
-    return askAI(prompt, { system: this.system(), fallback, maxTokens: 200, cacheKey: `ghost:${mo.eventId}` });
+    const prompt = `${facts}\n\nThis was a moment of genius, not a mistake. In two short sentences, as a TV analyst, celebrate what ${who} saw that others wouldn't and why it was the right ball. Keep it under 50 words.`;
+    return askAI(prompt, { system: this.system(), fallback, maxTokens: 200, cacheKey: `genius:${mo.eventId}` });
+  }
+
+  /** A pundit's drawn option, scored by the engine: would it have worked? */
+  explainSketch(a: GhostAnalysis, v: SketchVerdict, w: WhatIfResult, mo?: DecisionMoment): Promise<AskResult> {
+    const who = this.name(a.event.playerId);
+    const o = v.option;
+    const s = w.summary;
+    const better = o.deltaVsActual > 0.005;
+    const fallback =
+      `The pundit's idea, ${v.readAs}, comes off ${pct(s.pSuccess)} of the time in simulation and creates ${s.expectedGoals.toFixed(3)} xG per attempt. ` +
+      `It ranks ${v.rank} of ${v.of} options: ${better ? `better than what ${who} did by ${o.deltaVsActual.toFixed(3)}` : `no better than what ${who} did`}.` +
+      (v.notes.length ? ` ${v.notes[0]!.charAt(0).toUpperCase()}${v.notes[0]!.slice(1)}.` : '');
+    const facts = [
+      `Minute ${this.minute(a.event.clockMs)}. ${who} chose ${this.describe(a.actual)}.`,
+      mo && mo.kind === 'miss' ? `The engine's better option: ${this.describe(mo.ghost)}.` : '',
+      `The pundit drew: ${v.readAs}. Model chance it comes off ${pct(o.pSuccess)}, expected value ${o.expectedValue.toFixed(3)} vs ${a.actual.expectedValue.toFixed(3)} for the choice made. It ranks ${v.rank} of ${v.of} options.`,
+      `Simulation over ${s.rollouts} runs with defenders reacting: comes off ${pct(s.pSuccess)}, leads to a shot ${pct(s.shotRate)} of the time when it does, ${s.expectedGoals.toFixed(3)} xG per attempt.`,
+      o.visibility ? `It was ${visibilityWords(o.visibility)} for ${who}.` : '',
+      ...v.notes.map((n) => `Note: ${n}.`),
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const prompt = `${facts}\n\nAs the studio analyst, give a fair verdict on the pundit's suggestion in two short sentences: would it have worked, and how does it compare? Under 45 words.`;
+    return askAI(prompt, { system: this.system(), fallback, maxTokens: 160, cacheKey: `sketch:${a.event.id}:${w.key}` });
   }
 
   /** Every ~15 minutes: who's in control, who's creating, is it calm or chaotic? */
@@ -202,11 +256,17 @@ export class Narrator {
     return this.summary(snap, [], 'half time', 3, `half:${this.meta.matchId}`);
   }
 
-  fullTime(snap: StatsSnapshot, recap: DecisionMoment[]): Promise<AskResult> {
-    return this.summary(snap, recap, 'full time', 4, `full:${this.meta.matchId}`);
+  fullTime(snap: StatsSnapshot, recap: DecisionMoment[], report?: MatchReport): Promise<AskResult> {
+    const extra: string[] = [];
+    if (report) {
+      const w = report.whatIfScore;
+      extra.push(`What-if scoreline (model estimate): with the best available decision in each attack, expected goals would have been ${w.bestDecisions.home.toFixed(2)} to ${w.bestDecisions.away.toFixed(2)}, against actual xG ${w.xg.home.toFixed(2)} to ${w.xg.away.toFixed(2)} and a final score of ${w.goals.home}-${w.goals.away}.`);
+      for (const g of report.genius) extra.push(`Moment of genius (a good decision), minute ${this.minute(g.clockMs)}: ${this.name(g.playerId)} found ${this.describe(g.actual)} when most would have played ${this.describe(g.ghost)}.`);
+    }
+    return this.summary(snap, recap, 'full time', 4, `full:${this.meta.matchId}`, extra);
   }
 
-  private summary(snap: StatsSnapshot, recap: DecisionMoment[], when: string, sentences: number, cacheKey: string): Promise<AskResult> {
+  private summary(snap: StatsSnapshot, recap: DecisionMoment[], when: string, sentences: number, cacheKey: string, extra: string[] = []): Promise<AskResult> {
     const { home: h, away: a } = snap.teams;
     const top = [...recap].sort((x, y) => y.evLost - x.evLost)[0];
     const fallback =
@@ -220,6 +280,7 @@ export class Narrator {
         (m) =>
           `Missed opportunity (a mistake, not a good decision), minute ${this.minute(m.clockMs)}: ${this.name(m.playerId)} (${this.club(m.team)}) chose ${this.describe(m.actual)} when ${this.describe(m.ghost)} was the better option; value left on the table ${m.evLost.toFixed(3)}.`,
       ),
+      ...extra,
     ].join('\n');
     const n = sentences;
     const prompt = `${facts}\n\nWrite the ${when} studio summary in at most ${n} sentences (under ${n * 25} words): the story of the match so far${recap.length ? ' and the decisions that shaped it' : ''}.`;
@@ -228,6 +289,7 @@ export class Narrator {
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
+const visibilityWords = (v: string) => (v === 'visible' ? 'in their line of sight' : v === 'peripheral' ? 'on the edge of their vision' : 'behind them, out of sight');
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 const outcomeWord = (o: string) =>
   ({ success: 'came off', fail: 'did not come off', goal: 'went in', saved: 'was saved', blocked: 'was blocked', off_target: 'went off target' })[o] ?? o;

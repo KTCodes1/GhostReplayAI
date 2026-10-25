@@ -12,3 +12,6 @@ coverage/
 .vscode/*
 !.vscode/extensions.json
 /out/
+
+# fan votes collected while running (local data)
+server/data/

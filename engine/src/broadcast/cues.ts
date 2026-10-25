@@ -37,6 +37,8 @@ const clock = (ms: number) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 const round = (p: Vec2): Vec2 => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+/** A direction in the team's frame, in the absolute frame (away teams attack the other way). */
+const toAbsDir = (d: Vec2, team: Side): Vec2 => (team === 'home' ? round(d) : round({ x: -d.x, y: -d.y }));
 
 export class CueBuilder {
   private cues: OverlayCue[] = [];
@@ -177,21 +179,27 @@ export class CueBuilder {
         playerId: mo.playerId,
         name: this.players.get(mo.playerId)?.info.name,
         outcome: mo.actualOutcome,
-        arrows: [arrow(mo.actual, 'actual'), arrow(mo.ghost, 'ghost'), ...mo.alternatives.filter((o) => o.targetPlayerId !== mo.ghost.targetPlayerId || o.action !== mo.ghost.action).slice(0, 3).map((o) => arrow(o, 'alternative'))],
+        /** miss = a better option was on; genius = the player found the hard, right ball. */
+        momentKind: mo.kind,
+        arrows: [arrow(mo.actual, 'actual'), arrow(mo.ghost, mo.kind === 'genius' ? 'obvious' : 'ghost'), ...mo.alternatives.filter((o) => o.targetPlayerId !== mo.ghost.targetPlayerId || o.action !== mo.ghost.action).slice(0, 3).map((o) => arrow(o, 'alternative'))],
         valueLost: Math.round(mo.evLost * 1000) / 1000,
+        ...(mo.kind === 'genius' ? { threatGained: Math.round((mo.evGained ?? 0) * 1000) / 1000 } : {}),
+        confidence: mo.confidence?.level,
+        gameState: mo.gameState?.label,
+        ...(mo.vision ? { vision: { from, facing: toAbsDir(mo.vision.facing, mo.team), centralDeg: Math.round(mo.vision.centralDeg), peripheralDeg: Math.round(mo.vision.peripheralDeg) } } : {}),
         simulation: mo.sim,
         reasons: mo.reasons.map((r) => r.text),
         freezeFrame: e.freezeFrame.map((s) => ({ playerId: s.playerId, team: s.team, pos: toAbs(s.pos) })),
       }),
     ];
     // Tags ride along with the replay (same moment, separate overlay layer).
-    const target = mo.ghost.targetPlayerId;
+    const target = mo.kind === 'genius' ? mo.actual.targetPlayerId : mo.ghost.targetPlayerId;
     const tags: OverlayCue[] = [];
     const t1 = this.tagAt(mo.playerId, 'decision', from, e.t, mo.clockMs);
     if (t1) tags.push(t1);
     if (target) {
       const s = e.freezeFrame.find((f) => f.playerId === target);
-      const t2 = s && this.tagAt(target, 'better_option', toAbs(s.pos), e.t, mo.clockMs);
+      const t2 = s && this.tagAt(target, mo.kind === 'genius' ? 'found' : 'better_option', toAbs(s.pos), e.t, mo.clockMs);
       if (t2) tags.push(t2);
     }
     return [...out.filter((c): c is OverlayCue => c !== null), ...tags];

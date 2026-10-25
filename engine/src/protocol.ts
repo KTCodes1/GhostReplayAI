@@ -1,10 +1,15 @@
 // WebSocket protocol between server and client. JSON, one message per frame.
 
 import type { PlayerDecisionRecord } from './ghost/ghost';
+import type { SketchVerdict } from './ghost/sketch';
 import type { WhatIfResult } from './ghost/whatif';
+import type { DecisionDNA } from './report/dna';
 import type { MatchReport } from './report/report';
 import type { EventMetrics, StatsSnapshot } from './stats/interpret';
-import type { DecisionMoment, MatchEvent, MatchMeta, OverlayCue } from './types';
+import type { DecisionMoment, MatchEvent, MatchMeta, OverlayCue, Vec2 } from './types';
+
+/** "You're the player" votes for one moment, by option key. */
+export type VoteTally = Record<string, { fans: number; coaches: number }>;
 
 export type ServerMsg =
   | { type: 'meta'; meta: MatchMeta; speed: number; totalEvents: number; durationMs: number }
@@ -25,6 +30,13 @@ export type ServerMsg =
   | { type: 'report_lines'; matchId: string; status: MatchReport['status']; lines: Record<string, string>; source: 'gemini' | 'azure' | 'template' }
   /** New overlay cues (a cue whose payload has `replaces` cuts that earlier cue short at its own startT). */
   | { type: 'cues'; cues: OverlayCue[] }
+  /** Everyone's picks for a moment (all sessions, saved on the server), after the viewer has voted. */
+  | { type: 'votes'; eventId: string; tally: VoteTally; total: number }
+  /** A pundit's drawn option, scored and simulated; an AI note follows as `sketch_note`. */
+  | { type: 'sketch'; eventId: string; verdict: SketchVerdict; whatif: WhatIfResult }
+  | { type: 'sketch_note'; eventId: string; key: string; text: string; source: 'gemini' | 'azure' | 'template' }
+  /** Decision DNA for a player: this match, and across their last five matches. */
+  | { type: 'dna'; playerId: string; match: DecisionDNA | null; across: DecisionDNA | null }
   | { type: 'error'; message: string };
 
 export type NarrativeKind = 'ghost' | 'studio' | 'half_time' | 'full_time';
@@ -47,7 +59,13 @@ export type ClientMsg =
   /** Ask for (or refresh) the "why it mattered" text of a moment, e.g. one opened from the recap. */
   | { cmd: 'explain'; eventId: string }
   /** Ask for the match report so far (it is sent automatically at full time). */
-  | { cmd: 'report' };
+  | { cmd: 'report' }
+  /** "You're the player": the viewer's pick for a moment, before the reveal. */
+  | { cmd: 'vote'; eventId: string; key: string; role: 'fan' | 'coach' }
+  /** Pundit sketch: score an option drawn from the ball to `end` (acting team's frame). */
+  | { cmd: 'sketch'; eventId: string; end: Vec2 }
+  /** Decision DNA for a player. */
+  | { cmd: 'dna'; playerId: string };
 
 export type StreamParams = {
   seed: number;

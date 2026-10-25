@@ -15,9 +15,23 @@ import {
   buildMatchReport,
   optionKey,
   simulateWhatIf,
+  judgeSketch,
+  decisionDNA,
+  generateMatch,
+  hashSeed,
+  CLUBS,
+  type GhostAnalysis,
+  type MatchReport,
+  type Vec2,
 } from '@ghost/engine';
 import type { AskResult } from './ai/askAI';
 import { Narrator } from './narrative';
+import { tallyFor, validation, vote } from './votes';
+
+/** Other matches for Decision DNA "across the last five", cached per club (deterministic). */
+const dnaMatches = new Map<string, GeneratedMatch[]>();
+const DNA_MATCHES = 4;
+const yieldToStream = () => new Promise<void>((r) => setImmediate(r));
 
 /** Studio lines come in at these match minutes (half/full time get their own summaries). */
 const STUDIO_MINUTES = [15, 30, 60, 75];
@@ -89,21 +103,23 @@ export class MatchReplay {
   }
 
   /** Build the report from everything played so far; AI one-liners follow for the final report. */
-  sendReport() {
+  sendReport(): MatchReport | undefined {
     const upto = this.i - 1;
-    if (upto < 0) return;
+    if (upto < 0) return undefined;
     const focus = this.focusPlayerId ? [this.focusPlayerId] : [];
     const report = buildMatchReport(this.match, this.detector, upto, focus);
     // Moments in the report can be opened and explained like live ones.
     for (const m of [...report.topMoments, ...report.players.flatMap((p) => (p.missedChance ? [p.missedChance] : []))]) {
       if (!this.moments.has(m.eventId)) this.moments.set(m.eventId, m);
     }
+    report.validation.votes = validation();
     this.send({ type: 'report', report });
-    if (report.status !== 'final') return; // live reports keep the template lines: no AI calls
+    if (report.status !== 'final') return report; // live reports keep the template lines: no AI calls
     const ids = [report.playerOfTheMatch, ...report.highlights.home, ...report.highlights.away, ...focus].filter((x): x is string => !!x);
     this.narrator.playerLines(report, [...new Set(ids)]).then(({ lines, source }) => {
       if (!this.stopped) this.send({ type: 'report_lines', matchId: report.matchId, status: report.status, lines, source });
     });
+    return report;
   }
 
   explain(eventId: string) {
@@ -208,8 +224,8 @@ export class MatchReplay {
       const recap = this.detector.recap();
       for (const m of recap) if (!this.moments.has(m.eventId)) this.moments.set(m.eventId, m);
       this.send({ type: 'end', recap });
-      this.narrate('full_time', e.clockMs, this.narrator.fullTime(this.stats.snapshot(), recap));
-      this.sendReport();
+      const report = this.sendReport();
+      this.narrate('full_time', e.clockMs, this.narrator.fullTime(this.stats.snapshot(), recap, report));
       return;
     }
 
@@ -219,6 +235,9 @@ export class MatchReplay {
       this.moments.set(moment.eventId, moment);
       this.current = moment;
       this.send({ type: 'ghost', moment, holdMs: this.opts.holdMs });
+      // The crowd's picks from earlier sessions (shown only after the viewer votes).
+      const prior = tallyFor(this.match.meta.matchId, moment.eventId);
+      if (prior.total) this.send({ type: 'votes', eventId: moment.eventId, ...prior });
       this.narrate('ghost', moment.clockMs, this.narrator.explainMoment(moment), moment.eventId);
       this.sendState();
       clearTimeout(this.timer);
@@ -246,15 +265,80 @@ export class MatchReplay {
     return Math.min(ev[i + 1]!.t - ev[i]!.t, this.opts.maxGapMs);
   }
 
+  /** The event and its fresh analysis (judged with the event before it, as the detector did). */
+  private analysisOf(eventId: string): { event: GeneratedMatch['events'][number]; analysis: GhostAnalysis } | undefined {
+    const i = this.match.events.findIndex((e) => e.id === eventId);
+    const event = this.match.events[i];
+    const analysis = event && analyzeEvent(event, this.detector.roster, this.match.events[i - 1]);
+    return event && analysis ? { event, analysis } : undefined;
+  }
+
   /** Play out one option of a moment from its freeze frame and send the result. */
   simulate(eventId: string, key: string) {
-    const event = this.match.events.find((e) => e.id === eventId);
-    const analysis = event && analyzeEvent(event, this.detector.roster);
-    const option = analysis && [analysis.actual, ...analysis.alternatives].find((o) => optionKey(o) === key);
-    if (!event || !option) {
+    const found = this.analysisOf(eventId);
+    const option = found && [found.analysis.actual, ...found.analysis.alternatives].find((o) => optionKey(o) === key);
+    if (!found || !option) {
       this.send({ type: 'error', message: `Unknown option ${key} for ${eventId}` });
       return;
     }
-    this.send({ type: 'whatif', eventId, result: simulateWhatIf(this.match.meta, event, option) });
+    this.send({ type: 'whatif', eventId, result: simulateWhatIf(this.match.meta, found.event, option) });
+  }
+
+  /** "You're the player": record the viewer's pick and show them everyone's. */
+  vote(eventId: string, key: string, role: 'fan' | 'coach') {
+    const m = this.moments.get(eventId);
+    if (!m) return;
+    const actualKey = optionKey(m.actual);
+    const modelKey = m.kind === 'genius' ? actualKey : optionKey(m.ghost);
+    const { tally, total } = vote(this.match.meta.matchId, eventId, key, role, { modelKey, actualKey, kind: m.kind });
+    this.send({ type: 'votes', eventId, tally, total });
+  }
+
+  /** Pundit sketch: score the drawn option, simulate it, then add an AI note. */
+  sketch(eventId: string, end: Vec2) {
+    const found = this.analysisOf(eventId);
+    if (!found) return;
+    const i = this.match.events.indexOf(found.event);
+    const verdict = judgeSketch(found.event, this.detector.roster, this.match.events[i - 1], end, found.analysis);
+    const whatif = simulateWhatIf(this.match.meta, found.event, verdict.option);
+    this.send({ type: 'sketch', eventId, verdict, whatif });
+    const m = this.moments.get(eventId);
+    this.narrator.explainSketch(found.analysis, verdict, whatif, m).then((r) => {
+      if (!this.stopped) this.send({ type: 'sketch_note', eventId, key: whatif.key, text: r.text, source: r.source });
+    });
+  }
+
+  /** Decision DNA: this match so far, and across this match plus the club's four other matches. */
+  async dna(playerId: string) {
+    const entry = this.detector.roster.get(playerId);
+    if (!entry) return;
+    const peers = this.detector.analyses();
+    const here = decisionDNA(playerId, entry.info.name, peers, 1, peers);
+    const clubId = this.match.meta[entry.team].id;
+    let others = dnaMatches.get(clubId);
+    if (!others) {
+      others = [];
+      const opponents = CLUBS.filter((c) => c.id !== clubId);
+      for (let k = 0; k < DNA_MATCHES; k++) {
+        await yieldToStream();
+        if (this.stopped) return;
+        const opp = opponents[(hashSeed(clubId) + k) % opponents.length]!.id;
+        const seed = hashSeed(`dna:${clubId}:${k}`) % 100_000;
+        others.push(generateMatch({ seed, homeClubId: k % 2 ? opp : clubId, awayClubId: k % 2 ? clubId : opp }));
+      }
+      dnaMatches.set(clubId, others);
+    }
+    const mine = peers.filter((a) => a.event.playerId === playerId);
+    for (const m of others) {
+      await yieldToStream();
+      const roster = new DecisionDetector(m.meta).roster;
+      m.events.forEach((e, i) => {
+        if (e.playerId !== playerId) return;
+        const a = analyzeEvent(e, roster, m.events[i - 1]);
+        if (a) mine.push(a);
+      });
+    }
+    const across = decisionDNA(playerId, entry.info.name, mine, 1 + others.length, peers);
+    if (!this.stopped) this.send({ type: 'dna', playerId, match: here, across });
   }
 }

@@ -6,6 +6,7 @@ import { CLUBS, type ClientMsg, type GeneratedMatch, buildCueSheet, generateMatc
 import { aiProvider } from './ai/askAI';
 import { Narrator } from './narrative';
 import { MatchReplay } from './replay';
+import { validation } from './votes';
 
 // Secrets live in the repo-root .env (git-ignored). Missing file = mock AI, which is fine.
 try {
@@ -17,6 +18,8 @@ const PORT = Number(process.env.PORT ?? 8787);
 
 const app = express();
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// How often fans and coaches agree with the model's picks ("You're the player" votes).
+app.get('/api/validation', (_req, res) => res.json(validation()));
 app.get('/api/clubs', (_req, res) => res.json(CLUBS.map(({ id, name, shortName, colors, formation }) => ({ id, name, shortName, colors, formation }))));
 
 // Matches are deterministic, so cache them by their parameters.
@@ -83,6 +86,9 @@ wss.on('connection', (ws: WebSocket, req) => {
     else if (msg.cmd === 'prefs') replay.setPrefs(msg.prefs);
     else if (msg.cmd === 'explain') replay.explain(msg.eventId);
     else if (msg.cmd === 'report') replay.sendReport();
+    else if (msg.cmd === 'vote') replay.vote(msg.eventId, msg.key, msg.role === 'coach' ? 'coach' : 'fan');
+    else if (msg.cmd === 'sketch') replay.sketch(msg.eventId, msg.end);
+    else if (msg.cmd === 'dna') void replay.dna(msg.playerId);
   });
   ws.on('close', () => replay.stop());
   replay.start();
