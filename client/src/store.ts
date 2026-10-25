@@ -34,7 +34,7 @@ export type TickerItem = { id: string; clockMs: number; team?: Side; text: strin
 /** A pundit's drawn option for a moment, scored and simulated by the engine. */
 export type SketchResult = { verdict: SketchVerdict; whatif: WhatIfResult; note?: { text: string; source: AiSource } };
 export type Role = 'fan' | 'coach';
-export type AiSource = 'gemini' | 'azure' | 'template';
+export type AiSource = 'azure' | 'template';
 /** What the viewer picked. Favourite club is stored by club id (it maps to home/away per match). */
 /** Viewer settings: who they're following (player focus). Per match, so not remembered. */
 export type ClientPrefs = { focusPlayerId?: string };

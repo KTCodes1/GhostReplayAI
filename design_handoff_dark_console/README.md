@@ -86,7 +86,7 @@ Fixed 100vh, rows: `48px header / 64px match bar / 36px scrubber / 1fr body`. Al
 - **Brand** (`Brand` in Panels.tsx): 22×22 square, radius 4, bg `--ai`, text "GR" 10px/700 `--on-ai`; then "Ghost Replay" 13px/600; 1×16px divider `--line-2`; "Match Intelligence" 12px `--text-2`.
 - **Breadcrumb** (margin-left 16px, 12px `--muted`, gap 8): `Matches / Seed {seed} / {home.name} v {away.name}` — last item `--text-2`.
 - flex spacer
-- **AI status chip**: `padding:4px 10px; border:1px solid var(--line); radius 4; 12px --text-2`, 6px circle dot `--ok`, text `Azure OpenAI · Microsoft Foundry`. (When provider is `template`, dot `--muted`, text `Template mode`; when `gemini`, say `Google Gemini`.)
+- **AI status chip**: `padding:4px 10px; border:1px solid var(--line); radius 4; 12px --text-2`, 6px circle dot `--ok`, text `Azure OpenAI · Microsoft Foundry`. (When provider is `template`, dot `--muted`, text `Template mode`.)
 - Buttons: `Match report` (secondary) and `New match` (quiet).
 
 **Buttons**

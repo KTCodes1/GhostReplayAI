@@ -140,7 +140,7 @@ Open **http://localhost:5173**, pick two clubs and a match seed, and press **Sta
 
 Click **You're the player** in the header to play along, **Draw an option** in the panel to sketch, the **Player** tab for Decision DNA, and **Match report** at any time.
 
-**AI provider.** Set `AI_PROVIDER` in `.env` (see `.env.example`): `azure` for **Azure OpenAI through Microsoft Foundry** (the submission setting), `gemini` for development, or `mock` for no AI. The app works fully in every mode.
+**AI.** Copy `.env.example` to `.env` and add your **Azure OpenAI (Microsoft Foundry)** endpoint, key and deployment name, with `AI_PROVIDER=azure`. Without them the app still works fully: every explanation is written straight from the engine's facts.
 
 ---
 

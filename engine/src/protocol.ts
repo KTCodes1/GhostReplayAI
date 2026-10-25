@@ -23,7 +23,7 @@ export type ServerMsg =
   /** Instant template commentary tied to an event (show it when the playhead reaches that event). */
   | { type: 'commentary'; eventId: string; text: string }
   /** Written analysis: why a ghost moment mattered, studio lines, half/full-time summaries. */
-  | { type: 'narrative'; kind: NarrativeKind; eventId?: string; clockMs: number; text: string; source: 'gemini' | 'azure' | 'template'; evidence?: Evidence }
+  | { type: 'narrative'; kind: NarrativeKind; eventId?: string; clockMs: number; text: string; source: 'azure' | 'template'; evidence?: Evidence }
   /** Rolling last-5-minute metrics (pressure, territory, threat, predictability) and the current spell. */
   | { type: 'pulse'; pulse: MatchPulse }
   | { type: 'stats'; stats: StatsSnapshot; decisions: PlayerDecisionRecord[] }
@@ -31,14 +31,14 @@ export type ServerMsg =
   | { type: 'end'; recap: DecisionMoment[] }
   /** Post-match (or so-far) report; `report_lines` then replaces the template one-liners with AI ones. */
   | { type: 'report'; report: MatchReport }
-  | { type: 'report_lines'; matchId: string; status: MatchReport['status']; lines: Record<string, string>; source: 'gemini' | 'azure' | 'template' }
+  | { type: 'report_lines'; matchId: string; status: MatchReport['status']; lines: Record<string, string>; source: 'azure' | 'template' }
   /** New overlay cues (a cue whose payload has `replaces` cuts that earlier cue short at its own startT). */
   | { type: 'cues'; cues: OverlayCue[] }
   /** Everyone's picks for a moment (all sessions, saved on the server), after the viewer has voted. */
   | { type: 'votes'; eventId: string; tally: VoteTally; total: number }
   /** A pundit's drawn option, scored and simulated; an AI note follows as `sketch_note`. */
   | { type: 'sketch'; eventId: string; verdict: SketchVerdict; whatif: WhatIfResult }
-  | { type: 'sketch_note'; eventId: string; key: string; text: string; source: 'gemini' | 'azure' | 'template' }
+  | { type: 'sketch_note'; eventId: string; key: string; text: string; source: 'azure' | 'template' }
   /** Decision DNA for a player: this match, and across their last five matches. */
   | { type: 'dna'; playerId: string; match: DecisionDNA | null; across: DecisionDNA | null }
   | { type: 'error'; message: string };

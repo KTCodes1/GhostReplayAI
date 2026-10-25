@@ -26,7 +26,7 @@ npm run dev          # server on :8787, app on http://localhost:5173
 | Full-time report | `...?seed=7&speed=60&autostart&holdMs=400`, wait about 90 s | The report opens at full time. Or click **Match report** at any point. |
 | Hands-free demo | add `&holdMs=9000` to any link | Each freeze auto-continues after 9 s. |
 
-AI text is written live (Google Gemini in development; **Azure OpenAI via Microsoft Foundry** with `AI_PROVIDER=azure`), so the wording changes between runs. Every AI call has a template fallback, so the app never shows a blank.
+AI text is written live by **Azure OpenAI via Microsoft Foundry** (`AI_PROVIDER=azure`), so the wording changes between runs. Every AI call has a template fallback, so the app never shows a blank.
 
 ---
 
@@ -82,7 +82,7 @@ Every moment's explanation is built from a **numbered fact sheet** taken from th
 - no contradictions: "unmarked" or "free" when a defender was under 3 m away, "saw it" when the option was behind them, offside when nobody was.
 
 A rejected draft is regenerated once with the problems spelled out; if it fails again, the viewer gets an explanation written straight from the facts. When the Fair Play lens says there isn't enough evidence, the explanation says exactly that instead of inventing a reason. Studio lines, half- and full-time summaries, pulse lines, sketch verdicts and player one-liners are also number-checked against their facts.
-In a real trial, 5 of 5 Gemini explanations passed first time, each claim traceable to its facts.
+In a trial with a live AI model, 5 of 5 explanations passed first time, each claim traceable to its facts.
 *Where:* **Why we think this** under "Why it mattered": the status (for example "Every claim checked against the engine · 18 facts"), each claim with its facts, and any rejected drafts.
 
 ### Fair Play lens
@@ -131,9 +131,9 @@ The engine shows how far to trust it:
 
 ## 5. Microsoft and GitHub
 
-- **AI:** a single `askAI()` with providers `mock | gemini | azure`. The submission uses **Azure OpenAI through Microsoft Foundry** (`AI_PROVIDER=azure` plus 3 environment variables). Development used Gemini's free tier.
+- **AI:** a single `askAI()` that talks to **Azure OpenAI through Microsoft Foundry** (`AI_PROVIDER=azure` plus endpoint, key and deployment in `.env`); `mock` runs without AI.
 - **Hosting:** Azure (planned: Static Web Apps for the client, App Service for the WebSocket server).
-- **GitHub:** monorepo with npm workspaces (engine / server / client), TypeScript end to end, 63 engine tests. (The brief asks the write-up to mention GitHub Copilot: say how you used it.)
+- **GitHub:** monorepo with npm workspaces (engine / server / client), TypeScript end to end, 69 engine tests. (The brief asks the write-up to mention GitHub Copilot: say how you used it.)
 
 ---
 

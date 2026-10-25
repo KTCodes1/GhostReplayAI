@@ -27,7 +27,7 @@ export function useAiProvider(): AiSource {
 
 function AiStatus() {
   const provider = useAiProvider();
-  const label = provider === 'azure' ? 'Azure OpenAI · Microsoft Foundry' : provider === 'gemini' ? 'Google Gemini' : 'Template mode';
+  const label = provider === 'azure' ? 'Azure OpenAI · Microsoft Foundry' : 'Template mode';
   return (
     <div className={`ai-status${provider === 'template' ? ' tpl' : ''}`} title="Engine facts are written up by this model">
       <i />
