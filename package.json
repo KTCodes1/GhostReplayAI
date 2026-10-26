@@ -13,7 +13,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "sim": "npm run sim -w @ghost/engine --",
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @ghost/server\" \"npm run dev -w @ghost/client\"",
-    "validate": "npm run validate -w @ghost/engine"
+    "validate": "npm run validate -w @ghost/engine",
+    "build": "npm run build -w @ghost/client",
+    "start": "npm start -w @ghost/server"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

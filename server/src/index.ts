@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -46,6 +47,13 @@ app.get('/api/cues', (req, res) => {
     res.status(400).json({ error: (err as Error).message });
   }
 });
+
+// In production (one app on Azure) the server also serves the built client; in dev, Vite does.
+const web = fileURLToPath(new URL('../../client/dist', import.meta.url));
+if (existsSync(web)) {
+  app.use(express.static(web));
+  app.get('*', (_req, res) => res.sendFile(`${web}/index.html`));
+}
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
