@@ -97,7 +97,8 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
 let fixedTemperature = false;
 
 async function callAzure(prompt: string, opts: AskOptions): Promise<string> {
-  const endpoint = env('AZURE_OPENAI_ENDPOINT').replace(/\/+$/, '');
+  // Accept the resource URL or a pasted Foundry project / full deployment URL: keep only scheme + host.
+  const endpoint = new URL(env('AZURE_OPENAI_ENDPOINT')).origin;
   const url = `${endpoint}/openai/deployments/${encodeURIComponent(env('AZURE_OPENAI_DEPLOYMENT'))}/chat/completions?api-version=2024-10-21`;
   const body = (withTemperature: boolean) => ({
     messages: [...(opts.system ? [{ role: 'system', content: opts.system }] : []), { role: 'user', content: prompt }],
