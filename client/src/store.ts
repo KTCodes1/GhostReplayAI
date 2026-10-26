@@ -550,7 +550,7 @@ export const useMatch = create<State & Actions>((set, get) => {
     ...initial(),
     ...loadViewer(),
     speed: 8,
-    camera: 'broadcast',
+    camera: 'pitch', // Sideline: the whole pitch width
     prefs: {},
     connect: ({ seed, home, away, speed, holdMs, jump }) => {
       ws?.close();
