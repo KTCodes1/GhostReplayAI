@@ -1,12 +1,13 @@
 // App chrome and live panels: header, match bar, scrubber, stats, timeline, pitch header/footer and lower third.
 
-import type { DecisionMoment, Side } from '@ghost/engine';
+import { type DecisionMoment, type Side, optionKey } from '@ghost/engine';
 import { useEffect, useRef, useState } from 'react';
 import { type AiSource, type CameraMode, useMatch } from '../store';
 import { clock, clockTenths, minute, pct, playerLookup, providerName, signed, teamColor } from './format';
 import { kitColors } from '../pitch/coords';
 import { resetCameraView, useFreeCam } from '../pitch/Scene';
 import { ReportExports } from './Report';
+import { type Ending, endingOf } from './compare';
 
 export function AiBadge({ source }: { source: AiSource }) {
   if (source === 'template') return <span className="ai-badge tpl" title="Written from templates (AI unavailable)">Template</span>;
@@ -489,6 +490,34 @@ export function CompareLabel() {
       <b>WHAT-IF TIMELINE</b>
       <span>Solid: what happened · Translucent: the ghost run</span>
       <span className="hint">Plausible simulation, not a prediction</span>
+    </div>
+  );
+}
+
+/** On the pitch when a simulation or the what-if timeline finishes: how each run ended, in one word. */
+export function RunResult() {
+  const ghost = useMatch((s) => s.ghost);
+  const playing = useMatch((s) => s.whatIfPlaying);
+  const done = useMatch((s) => s.whatIfDone);
+  const comparing = useMatch((s) => s.comparing);
+  const compareDone = useMatch((s) => s.compareDone);
+  const results = useMatch((s) => s.whatIf);
+  if (!ghost) return null;
+  const team = ghost.moment.team;
+  let rows: [string, Ending][] = [];
+  if (comparing && compareDone) {
+    const run = results[optionKey(ghost.moment.ghost)];
+    rows = [['What happened', endingOf([ghost.event, ...ghost.continuation], team)], ...(run ? [['Ghost run', endingOf(run.replay, team)] as [string, Ending]] : [])];
+  } else if (playing && done && results[playing]) rows = [['This simulated run', endingOf(results[playing]!.replay, team)]];
+  if (!rows.length) return null;
+  return (
+    <div className="run-result">
+      {rows.map(([who, end]) => (
+        <div key={who} className={end.goal ? 'goal' : undefined}>
+          <span>{who}</span>
+          <b>{end.label}</b>
+        </div>
+      ))}
     </div>
   );
 }

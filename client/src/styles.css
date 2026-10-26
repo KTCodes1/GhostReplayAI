@@ -638,3 +638,11 @@ button.pm .go { color: var(--ai-text); flex: none; }
 .fool-row.missed b { color: var(--actual); }
 .dna-note { font-size: 11px; line-height: 1.4; color: var(--muted); }
 .conf-chip.clear { color: var(--ai-text); border-color: var(--ai-line); }
+
+/* how a simulation / what-if run ended, top-right of the pitch */
+.run-result { position: absolute; top: 12px; right: 12px; z-index: 30; display: flex; gap: 8px; pointer-events: none; }
+.run-result > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 16px; background: rgba(15, 18, 22, 0.94); border: 1px solid var(--line-2); border-radius: var(--r); }
+.run-result span { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+.run-result b { font-size: 18px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }
+.run-result .goal { border-color: var(--gold); }
+.run-result .goal b { color: var(--gold); }

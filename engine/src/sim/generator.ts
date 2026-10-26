@@ -650,7 +650,12 @@ export function createSimulation(cfg: SimConfig) {
     // a save stops where the keeper meets it, and a miss ends visibly wide.
     if (outcome === 'saved') {
       const aim = goalY(3.2);
-      const u = clamp((SAVE_X - startTF.x) / Math.max(0.1, aim.x - startTF.x), 0, 1);
+      // Meet the keeper: the point on the shot's line nearest them, never closer to goal than SAVE_X.
+      const k = toTeamFrame(keeper.pos, att);
+      const dx = aim.x - startTF.x;
+      const dy = aim.y - startTF.y;
+      const uMax = clamp((SAVE_X - startTF.x) / Math.max(0.1, dx), 0, 1);
+      const u = clamp(((k.x - startTF.x) * dx + (k.y - startTF.y) * dy) / Math.max(0.01, dx * dx + dy * dy), 0.5 * uMax, uMax);
       const caught = v(startTF.x + (aim.x - startTF.x) * u, startTF.y + (aim.y - startTF.y) * u);
       emit({ type: 'shot', team: att, player: shooter, start: startAbs, end: toAbsolute(caught, att), outcome, ballSpeed, context });
       t += travelMs;

@@ -43,3 +43,16 @@ export function readout(timed: TimedEvent[], pt: number, team: Side, meta: Match
 function opponents(e: MatchEvent, keeper: Set<string>) {
   return e.freezeFrame.filter((s) => s.team !== e.team).map((s) => ({ pos: s.pos, isGK: keeper.has(s.playerId) }));
 }
+
+export type Ending = { label: string; goal: boolean };
+const ENDINGS: Record<string, string> = { goal: 'Goal', saved: 'Saved', blocked: 'Blocked', off_target: 'Wide' };
+// Events by the other side that mean they have the ball (pressure alone doesn't).
+const WON = new Set(['pass', 'carry', 'shot', 'interception', 'possession_change']);
+
+/** How a run of events ended, in one word for the pitch: the last shot's result, else whether the ball was kept. */
+export function endingOf(events: MatchEvent[], team: Side): Ending {
+  const shot = [...events].reverse().find((e) => e.type === 'shot' && e.team === team);
+  if (shot?.outcome) return { label: ENDINGS[shot.outcome] ?? 'Shot', goal: shot.outcome === 'goal' };
+  const lost = events.some((e) => e.team !== team && (WON.has(e.type) || (e.type === 'tackle' && e.outcome === 'success')));
+  return { label: lost ? 'Ball lost' : 'Kept the ball', goal: false };
+}

@@ -20,7 +20,7 @@ import {
 } from '@ghost/engine';
 import { useEffect, useState } from 'react';
 import { WHATIF_SPEED, playback, useMatch } from '../store';
-import { type Readout, readout } from './compare';
+import { type Readout, endingOf, readout } from './compare';
 import { choicePhrase, minute, pct, playerLookup, signed, teamColor } from './format';
 import { AiBadge, TimelineTab } from './Panels';
 
@@ -31,6 +31,8 @@ const OUTCOME: Record<WhatIfOutcome, string> = {
   foul: 'a foul',
   kept: 'keeping the ball',
 };
+/** A run that ends in a shot, said precisely, so a save never reads as a goal. */
+const SHOT_END: Record<string, string> = { Goal: 'a goal', Saved: 'a save by the keeper', Blocked: 'a blocked shot', Wide: 'a shot wide of the goal' };
 const RESULT: Record<string, string> = { success: 'came off', fail: 'failed', goal: 'goal', saved: 'saved', blocked: 'blocked', off_target: 'off target' };
 /** The modeled field of view: a geometric estimate, not where the player actually looked. */
 const SEEN: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In modeled view', peripheral: 'Edge of modeled view', behind: 'Outside modeled view', unknown: 'Unknown' };
@@ -191,7 +193,7 @@ function SimulationStrip({ name }: { name: (id?: string) => string }) {
         {!res
           ? 'Simulating from the frozen moment…'
           : done
-            ? `This run ended in ${OUTCOME[res.replayOutcome]}${res.replayXg ? ` (xG ${res.replayXg.toFixed(2)})` : ''}. One of ${res.summary.rollouts} simulated runs: it came off ${pct(res.summary.pSuccess)} of the time, and ${pct(res.summary.shotRate)} of those led to a shot.`
+            ? `This run ended in ${SHOT_END[endingOf(res.replay, m.team).label] ?? OUTCOME[res.replayOutcome]}${res.replayXg ? ` (xG ${res.replayXg.toFixed(2)})` : ''}. One of ${res.summary.rollouts} simulated runs: it came off ${pct(res.summary.pSuccess)} of the time, and ${pct(res.summary.shotRate)} of those led to a shot.`
             : `Playing one of ${res.summary.rollouts} simulated runs on the pitch…`}
       </p>
       <div className="btn-row">
