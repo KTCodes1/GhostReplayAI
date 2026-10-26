@@ -52,6 +52,8 @@ type SimPlayer = {
 
 const other = (s: Side): Side => (s === 'home' ? 'away' : 'home');
 const MS = 1000;
+const SAVE_X = 103.6; // where the keeper meets a saved shot (team frame), 1.4 m off the line
+const WIDE_Y = 4.6; // a missed shot ends at least this far from the centre of the goal (posts at 3.66)
 const r2 = (x: number) => Math.round(x * 100) / 100;
 const rv = (p: Vec2): Vec2 => ({ x: r2(p.x), y: r2(p.y) });
 
@@ -644,15 +646,23 @@ export function createSimulation(cfg: SimConfig) {
       return;
     }
 
+    // The pitch is drawn flat, so a non-goal must never end between the posts on the goal line:
+    // a save stops where the keeper meets it, and a miss ends visibly wide.
     if (outcome === 'saved') {
-      emit({ type: 'shot', team: att, player: shooter, start: startAbs, end: toAbsolute(goalY(3.2), att), outcome, ballSpeed, context });
+      const aim = goalY(3.2);
+      const u = clamp((SAVE_X - startTF.x) / Math.max(0.1, aim.x - startTF.x), 0, 1);
+      const caught = v(startTF.x + (aim.x - startTF.x) * u, startTF.y + (aim.y - startTF.y) * u);
+      emit({ type: 'shot', team: att, player: shooter, start: startAbs, end: toAbsolute(caught, att), outcome, ballSpeed, context });
       t += travelMs;
       if (rng.chance(0.35)) corner(att);
       else turnover(def, keeper, keeper.pos, 'keeper_save', rng.range(4, 9) * MS);
       return;
     }
 
-    emit({ type: 'shot', team: att, player: shooter, start: startAbs, end: toAbsolute(rng.chance(0.5) ? goalY(9) : v(PITCH_LENGTH, 34 + rng.pick([-1, 1]) * rng.range(4, 8)), att), outcome, ballSpeed, context });
+    const miss = rng.chance(0.5) ? goalY(9) : v(PITCH_LENGTH, 34 + rng.pick([-1, 1]) * rng.range(4, 8));
+    const off = miss.y - PITCH_WIDTH / 2;
+    if (Math.abs(off) < WIDE_Y) miss.y = PITCH_WIDTH / 2 + (off < 0 ? -1 : 1) * (WIDE_Y + Math.abs(off) / 2);
+    emit({ type: 'shot', team: att, player: shooter, start: startAbs, end: toAbsolute(miss, att), outcome, ballSpeed, context });
     t += travelMs;
     const gkSpot = toAbsolute(v(5.5, PITCH_WIDTH / 2 + rng.pick([-9, 9])), def);
     keeper.pos = gkSpot;
