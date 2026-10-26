@@ -646,3 +646,4 @@ button.pm .go { color: var(--ai-text); flex: none; }
 .run-result b { font-size: 18px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }
 .run-result .goal { border-color: var(--gold); }
 .run-result .goal b { color: var(--gold); }
+.run-result em { font-style: normal; font-size: 11px; color: var(--text-2); }

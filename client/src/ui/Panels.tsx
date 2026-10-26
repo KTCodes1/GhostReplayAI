@@ -516,6 +516,7 @@ export function RunResult() {
         <div key={who} className={end.goal ? 'goal' : undefined}>
           <span>{who}</span>
           <b>{end.label}</b>
+          {end.note && <em>{end.note}</em>}
         </div>
       ))}
     </div>

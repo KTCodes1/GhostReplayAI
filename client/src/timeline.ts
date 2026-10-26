@@ -11,6 +11,11 @@ const BALL_TYPES = new Set(['pass', 'carry', 'shot', 'kickoff', 'interception', 
 
 type Frame = { pt: number; pos: Map<string, Vec2> };
 type BallKey = { pt: number; start: Vec2; end?: Vec2; flightMs: number; lofted: boolean; holder: string };
+/** A player winning the ball (interception, tackle, keeper collecting): only their own position is fresh. */
+type Take = { pt: number; id: string; pos: Vec2 };
+/** Restarts teleport the taker (goal kick, throw-in...): not something to animate as a run to the ball. */
+const TAKE_CONTEXTS = new Set([undefined, 'keeper_save']);
+const smooth = (u: number) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 
 export type View = { positions: Map<string, Vec2>; ball: { x: number; y: number; h: number }; holder?: string };
 
@@ -29,6 +34,7 @@ function upperIndex<T extends { pt: number }>(arr: T[], pt: number): number {
 export class Timeline {
   private frames: Frame[] = [];
   private balls: BallKey[] = [];
+  private takes: Take[] = [];
   lastPt = -Infinity;
   firstPt = Infinity;
 
@@ -41,7 +47,12 @@ export class Timeline {
       this.frames.push({ pt, pos });
     }
     if (BALL_TYPES.has(e.type)) {
-      const start = toAbsolute(e.start, e.team);
+      let start = toAbsolute(e.start, e.team);
+      const prevBall = this.balls[this.balls.length - 1];
+      // A keeper's save: they hold it where the shot met them.
+      if (e.context === 'keeper_save' && prevBall?.end) start = prevBall.end;
+      const won = e.type === 'interception' || (e.type === 'tackle' && e.outcome === 'success') || (e.type === 'possession_change' && TAKE_CONTEXTS.has(e.context));
+      if (won) this.takes.push({ pt, id: e.playerId, pos: start });
       const end = e.end && e.type !== 'kickoff' ? toAbsolute(e.end, e.team) : undefined;
       const d = end ? dist(start, end) : 0;
       const speed = e.type === 'carry' ? 5.5 : e.ballSpeed ?? 15;
@@ -59,6 +70,24 @@ export class Timeline {
   }
 
   private samplePlayers(pt: number): Map<string, Vec2> {
+    const out = this.sampleFrames(pt);
+    // Pull whoever won the ball onto it, easing in from the frame before and out to the frame after.
+    const k = upperIndex(this.takes, pt);
+    for (const t of [this.takes[k - 1], this.takes[k]]) {
+      const base = t && out.get(t.id);
+      if (!t || !base) continue;
+      const fi = upperIndex(this.frames, t.pt - 1);
+      const from = this.frames[fi - 1]?.pt ?? t.pt - 1000;
+      const to = this.frames[fi]?.pt;
+      let w = 0;
+      if (pt <= t.pt) w = pt >= from ? smooth((pt - from) / Math.max(1, t.pt - from)) : 0;
+      else w = to === undefined ? 1 : pt < to ? smooth(1 - (pt - t.pt) / Math.max(1, to - t.pt)) : 0;
+      if (w > 0) out.set(t.id, { x: base.x + (t.pos.x - base.x) * w, y: base.y + (t.pos.y - base.y) * w });
+    }
+    return out;
+  }
+
+  private sampleFrames(pt: number): Map<string, Vec2> {
     const f = this.frames;
     const out = new Map<string, Vec2>();
     if (!f.length) return out;

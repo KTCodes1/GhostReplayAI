@@ -755,6 +755,9 @@ export function createSimulation(cfg: SimConfig) {
     // Stop the story at the play that ended it (no celebrations, restarts or kick-offs).
     const out = ended ? events.slice(0, ended.at + 1) : [...events];
     const last = out[out.length - 1]!;
+    // ...but keep the keeper or defender actually taking the ball, so the replay shows who won it.
+    const taken = ended && events[ended.at + 1];
+    if (taken && taken.type === 'possession_change' && (!taken.context || taken.context === 'keeper_save')) out.push(taken);
     const endEvent = ended ? events[ended.at]! : undefined;
     const shotFrom = endEvent?.type === 'shot' ? toAbsolute(endEvent.start, endEvent.team) : undefined;
     const lossAt = outcome === 'turnover' ? { ...ball } : undefined;

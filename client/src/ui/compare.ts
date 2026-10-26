@@ -44,7 +44,7 @@ function opponents(e: MatchEvent, keeper: Set<string>) {
   return e.freezeFrame.filter((s) => s.team !== e.team).map((s) => ({ pos: s.pos, isGK: keeper.has(s.playerId) }));
 }
 
-export type Ending = { label: string; goal: boolean };
+export type Ending = { label: string; goal: boolean; note?: string };
 const ENDINGS: Record<string, string> = { goal: 'Goal', saved: 'Saved', blocked: 'Blocked', off_target: 'Wide' };
 // Events by the other side that mean they have the ball (pressure alone doesn't).
 const WON = new Set(['pass', 'carry', 'shot', 'interception', 'possession_change']);
@@ -54,5 +54,8 @@ export function endingOf(events: MatchEvent[], team: Side): Ending {
   const shot = [...events].reverse().find((e) => e.type === 'shot' && e.team === team);
   if (shot?.outcome) return { label: ENDINGS[shot.outcome] ?? 'Shot', goal: shot.outcome === 'goal' };
   const lost = events.some((e) => e.team !== team && (WON.has(e.type) || (e.type === 'tackle' && e.outcome === 'success')));
-  return { label: lost ? 'Ball lost' : 'Kept the ball', goal: false };
+  // A long run can lose the ball several passes after the chosen option worked: say so.
+  const first = events[0];
+  const worked = first && first.team === team && first.outcome === 'success' && (first.type === 'pass' || first.type === 'carry');
+  return { label: lost ? 'Ball lost' : 'Kept the ball', goal: false, ...(lost && worked ? { note: `${first.type === 'pass' ? 'The pass' : 'The run'} came off, lost later` } : {}) };
 }
