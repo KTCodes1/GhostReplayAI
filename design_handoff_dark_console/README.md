@@ -204,6 +204,3 @@ Unchanged from the current app (store actions in `client/src/store.ts`). Only di
 - `reference/ghost-data.js` — sample data used by the mock (shape mirrors engine output).
 - `reference/pitch.js` — 2D pitch stand-in; use only for colour reference.
 - `reference/support.js` — runtime for the reference file; not for the app.
-
-## Suggested Claude Code prompt
-> Read `design_handoff_dark_console/README.md` and open `reference/Console Dark.dc.html`. Restyle the Ghost Replay client to match it exactly: replace the tokens in `client/src/styles.css`, swap Inter for IBM Plex Sans/Mono, restructure `App.tsx`/`Panels.tsx` (header + match bar + scrubber), make `GhostPanel` the right grid column, move `EventChip` into the pitch footer bar, turn `Report` into a full page, and update the pitch colours in `pitch/Scene.tsx` and `Ghosts.tsx`. Do not change the engine, server, store logic or protocol. Remove all emoji/glyph icons. Run `npm run dev` and compare against the reference at 1440×900.
