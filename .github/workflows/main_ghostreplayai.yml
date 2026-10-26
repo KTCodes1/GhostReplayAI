@@ -51,3 +51,7 @@ jobs:
           app-name: 'GhostReplayAI'
           slot-name: 'Production'
           package: .
+          # Wipe leftovers of an earlier Azure build (oryx-manifest.toml, node_modules.tar.zst),
+          # which would otherwise replace node_modules at startup.
+          clean: true
+          restart: true
