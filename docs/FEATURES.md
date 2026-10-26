@@ -15,6 +15,7 @@ npm run dev          # server on :8787, app on http://localhost:5173
 
 | Shot you want | Open this | Then |
 | --- | --- | --- |
+| The demo-video moment | `http://localhost:5173/?seed=7&speed=8&autostart&jump`, then **Next moment** once | Freezes at 3:52. Dunmore passes sideways to Ferrandes; the better option is to drive forward, inside his modeled view. **Watch both** shows the real pass keeping the ball and the ghost run ending in a saved shot. Fair Play: **Reasonable alternative** (the gain was small), High confidence. |
 | A ghost moment, straight away | `http://localhost:5173/?seed=7&speed=8&autostart&jump` | Freezes at 0:27. Theo Dunmore shoots (blocked); the engine says the pass to Moreau was on, but at the edge of Dunmore's modeled view, so the Fair Play lens says **Reasonable alternative**. Open **Why we think this** under the explanation to see every claim with its facts, then **Try to fool the checker**. |
 | Clear opportunity missed | same link, press **Next moment** three times | 17', Ansomah passes to Yildiran when a pass to Rasmark was on: **Clear opportunity missed**. |
 | What-if timeline | at any freeze, **Watch both** | The real next seconds (solid players) and the ghost run (translucent players) play together, with running xT / xG. |

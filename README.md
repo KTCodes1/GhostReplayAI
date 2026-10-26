@@ -2,6 +2,8 @@
 
 **Football analytics tells us what happened. Ghost Replay reveals what could have happened.**
 
+**Demo video (under 2 minutes):** VIDEO_LINK_HERE
+
 Ghost Replay turns a live stream of synthetic football events into an interactive AI analyst for fans, pundits and broadcasters. When a player faces a pivotal decision, it freezes the action, evaluates the plausible alternatives, and simulates how the next few seconds might unfold as defenders react.
 
 Its defining idea is **fair, evidence-backed decision analysis**. A modeled view of what the player could see, player movement, execution difficulty, match context and simulated outcomes separate a *clear missed opportunity* from a *reasonable choice*, or from a moment where there is *not enough evidence to judge*. An **evidence-checked AI** (Azure OpenAI through Microsoft Foundry) explains why each moment mattered, and every claim it makes is checked against the engine's facts before anyone sees it.
@@ -14,13 +16,17 @@ Built for **Inside the Game: Developer Hackathon** (Microsoft × Premier League)
 
 ## The two-minute story
 
-1. **A missed opportunity.** At 0:27 the match freezes: Dunmore shoots (blocked) while a pass to Moreau was on. The vision cone shows Moreau was at the edge of Dunmore's modeled view, so the **Fair Play lens** calls it a *Reasonable alternative*, not a blunder.
-2. **What could have happened.** **Watch both** plays the real next seconds and the ghost run side by side, with defenders reacting and live xT and xG for each version. It's labelled *plausible simulation, not a prediction*.
-3. **The evidence.** **Why we think this** shows every claim in the AI's explanation with the engine facts it rests on (for example "Nearest defender to Moreau: Yildiran, 0.3 m away").
-4. **The AI being checked.** **Try to fool the checker** feeds the validator four false claims ("Moreau was completely unmarked", an invented 97% chance, a player who wasn't there, an offside that didn't happen). It rejects each one and says why.
-5. **For the broadcaster.** The full-time report, plus timed overlay cues as JSON that a graphics system could sync to its feed.
+This is the moment shown in the demo video (seed 7, 3:52):
 
-Open `http://localhost:5173/?seed=7&speed=8&autostart&jump` to start at step 1 (setup is under [Run it](#run-it)).
+1. **The decision.** The match freezes: Dunmore plays a safe sideways pass to Ferrandes (red). The engine's better option is to **drive forward** into the space ahead of him (blue).
+2. **Could he see it?** The vision cone is Dunmore's modeled field of view, and the run is **inside** it. The judgement also accounts for player movement, offside, execution difficulty, the score and what the option sets up next.
+3. **Would it have worked?** **Watch both** plays the real next seconds and the ghost run on the same pitch, with defenders reacting. The real pass keeps the ball (*Kept the ball*); the ghost run ends in a shot on goal (*Saved*). Across 50 simulations the run forward leads to a shot about half the time it comes off; the safe pass never does. It's labelled *plausible simulation, not a prediction*.
+4. **How sure are we?** The gain is small, so the **Fair Play lens** says *Reasonable alternative*, not a blunder, with **High confidence**.
+5. **The evidence.** **Why we think this** lists each claim in the explanation with the engine facts it rests on. **Try to fool the checker** feeds the checker four false claims about the moment (an invented chance, a wrong distance or "unmarked", a player who wasn't there, an offside that didn't happen) and shows each one rejected.
+6. **Your turn.** **Draw an option** to have your own idea scored and simulated; **You're the player** asks you to pick before the reveal; the **Player** tab follows one player's decisions all match.
+7. **For the broadcaster.** The match report (live "so far", or at full time), plus timed overlay cues as JSON that a graphics system could sync to its feed.
+
+To reproduce it: open `http://localhost:5173/?seed=7&speed=8&autostart&jump` (the first freeze is at 0:27), then press **Next moment** once (setup is under [Run it](#run-it)).
 
 ---
 
@@ -61,7 +67,7 @@ The model also writes studio lines, half- and full-time summaries, match-pulse l
 
 | Microsoft / GitHub piece | Status |
 | --- | --- |
-| Azure OpenAI via Microsoft Foundry | Integrated in code (`server/src/ai/askAI.ts`); deployment credentials are being added. Without them the app runs fully on fact-built explanations. |
+| Azure OpenAI via Microsoft Foundry | Integrated in code (`server/src/ai/askAI.ts`); deployment credentials are being added. Without them the app runs fully on fact-built explanations, which is what the demo video shows ("Written straight from the engine facts"). |
 | Azure hosting (Static Web Apps for the client, App Service for the WebSocket server) | Planned |
 | GitHub | Git repository, to be published publicly on GitHub for judging; TypeScript monorepo with 69 automated engine tests and a reproducible validation script |
 
@@ -181,7 +187,7 @@ Open **http://localhost:5173**, pick two clubs and a match seed, and press **Sta
 
 | Link | What you'll see |
 | --- | --- |
-| `/?seed=7&speed=8&autostart&jump` | The demo moment at 0:27 (Reasonable alternative). Press **Next moment** three times for a **Clear opportunity missed** at 17'. |
+| `/?seed=7&speed=8&autostart&jump` | First freeze at 0:27. Press **Next moment** once for the demo-video moment at 3:52 (Dunmore, drive forward), three times for a **Clear opportunity missed** at 17'. |
 | `/?seed=11&speed=20&autostart&jump` | Press **Next moment** four times for a **moment of genius** at 38'. |
 | `/?seed=7&speed=20&autostart&holdMs=300` | Hands-free: moments auto-continue, so you see the match pulse and player tags. |
 
