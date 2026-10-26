@@ -79,7 +79,7 @@ About 235 words of voiceover over 1:55: a calm, confident pace with room to brea
 Record more than you need; cut tight in the editor.
 
 ## Recording setup
-- **Add the Azure key first**, so the header shows *Azure OpenAI · Microsoft Foundry* and not *Template mode*.
+- The app no longer names the AI model on screen; say "Azure OpenAI" in the voiceover and the description.
 - Restart `npm run dev` and do one dry run of clip B (warms the AI cache).
 - Chrome full screen (F11), 1920×1080, zoom 100%, one tab, notifications off.
 - Record screen in **Clipchamp** (built into Windows), voiceover separately in Clipchamp or on your phone in a quiet room. Recording voice separately is easier: no clicking noises, and you can redo lines.
