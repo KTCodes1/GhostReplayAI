@@ -62,7 +62,7 @@ For every flagged moment whose better option is a pass, we change one thing in t
 
 For every moment (live and recap), the checker gets the engine's fact sheet plus a deliberately false sentence of each kind below. A claim counts as **caught** if the checker reports a problem.
 
-**Example.** Fact: *"Nearest defender to Moreau: Zielinski, 1.4 m away."* False claim: *"Moreau was completely unmarked."* Checker: *"it says Moreau was unmarked, but a defender was 1.4 m away"*
+**Example.** Fact: *"Nearest defender to Moreau: Zielonka, 1.4 m away."* False claim: *"Moreau was completely unmarked."* Checker: *"it says Moreau was unmarked, but a defender was 1.4 m away"*
 
 | False claim | Caught |
 | --- | --- |
@@ -82,7 +82,7 @@ For every moment (live and recap), the checker gets the engine's fact sheet plus
 
 **Result: 119 of 221 flagged moments upheld (53.8%); 102 dropped before they reached the screen.**
 
-**Example (seed 101, minute 5).** Mensah chose shot; the model flagged carry as worth 0.108 more. In 50 runs it created 0.405 expected goals per attempt against 0.193, so it was upheld (confidence: high).
+**Example (seed 101, minute 5).** Ansomah chose shot; the model flagged carry as worth 0.108 more. In 50 runs it created 0.405 expected goals per attempt against 0.193, so it was upheld (confidence: high).
 
 ## Known gaps
 

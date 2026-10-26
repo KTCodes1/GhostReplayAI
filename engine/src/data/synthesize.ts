@@ -9,7 +9,9 @@ import type { PlayerAttributes, PlayerProfile, Position, SeasonStats } from '../
 export const SEASONS = { current: '2026/27', previous: '2025/26' } as const;
 
 const FIRST = ['Jamie', 'Kofi', 'Luca', 'Mateo', 'Theo', 'Ruben', 'Yusuf', 'Callum', 'Niko', 'Andre', 'Sami', 'Oskar', 'Rafael', 'Tomas', 'Kai', 'Elias', 'Malik', 'Joel', 'Ivan', 'Dario', 'Felix', 'Hugo', 'Leon', 'Marco', 'Noah', 'Owen', 'Pablo', 'Rhys', 'Sven', 'Tariq', 'Ugo', 'Victor', 'Wes', 'Xavi', 'Yann', 'Zeki', 'Ade', 'Bruno', 'Cian', 'Dami'];
-const LAST = ['Okafor', 'Lindqvist', 'Moreau', 'Hartley', 'Castellano', 'Nakamura', 'Brennan', 'Achterberg', 'Silva', 'Kowalski', 'Mensah', 'Delacroix', 'Ferreira', 'Halloran', 'Ibrahimovic', 'Jovanovic', 'Kessler', 'Lombardi', 'Mbeki', 'Novak', 'Oyelaran', 'Petrov', 'Quinlan', 'Rasmussen', 'Santoro', 'Thorne', 'Ueda', 'Vasquez', 'Whitlock', 'Yilmaz', 'Zielinski', 'Asante', 'Bergstrom', 'Coelho', 'Dunmore', 'Eriksen', 'Fofana', 'Gallagher', 'Haddad', 'Iwobi'];
+// Invented surnames, chosen not to match well-known footballers (same length and order as the
+// original list, so every squad keeps its draws and ratings).
+const LAST = ['Ezeoha', 'Lindqvist', 'Moreau', 'Hartley', 'Castellano', 'Takenouchi', 'Brennan', 'Achterberg', 'Valadares', 'Brzezina', 'Ansomah', 'Delacroix', 'Ferrandes', 'Halloran', 'Ibrisevic', 'Jovancic', 'Kessler', 'Lombardi', 'Mbekwa', 'Novotar', 'Oyelaran', 'Petrunin', 'Quinlan', 'Rasmark', 'Santoro', 'Thorne', 'Uesaka', 'Vasquez', 'Whitlock', 'Yildiran', 'Zielonka', 'Asafo', 'Bergstrom', 'Coelheiro', 'Dunmore', 'Eriksrud', 'Foulani', 'Gallowen', 'Haddad', 'Iweka'];
 
 type Group = 'GK' | 'CB' | 'FB' | 'DM' | 'CM' | 'W' | 'AM' | 'ST';
 const groupOf = (p: Position): Group =>

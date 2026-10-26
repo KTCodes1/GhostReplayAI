@@ -9,8 +9,8 @@ import type { PlayerProfile } from '../types';
 export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
   "nba": [
     {
-      "name": "Marco Fofana",
-      "shortName": "Fofana",
+      "name": "Marco Foulani",
+      "shortName": "Foulani",
       "number": 1,
       "position": "GK",
       "role": "GK",
@@ -45,8 +45,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Oskar Gallagher",
-      "shortName": "Gallagher",
+      "name": "Oskar Gallowen",
+      "shortName": "Gallowen",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -81,8 +81,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Marco Mensah",
-      "shortName": "Mensah",
+      "name": "Marco Ansomah",
+      "shortName": "Ansomah",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -117,8 +117,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Rhys Yilmaz",
-      "shortName": "Yilmaz",
+      "name": "Rhys Yildiran",
+      "shortName": "Yildiran",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -189,8 +189,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Mateo Asante",
-      "shortName": "Asante",
+      "name": "Mateo Asafo",
+      "shortName": "Asafo",
       "number": 6,
       "position": "DM",
       "role": "DM",
@@ -333,8 +333,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Yann Okafor",
-      "shortName": "Okafor",
+      "name": "Yann Ezeoha",
+      "shortName": "Ezeoha",
       "number": 9,
       "position": "ST",
       "role": "ST",
@@ -443,8 +443,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Malik Jovanovic",
-      "shortName": "Jovanovic",
+      "name": "Malik Jovancic",
+      "shortName": "Jovancic",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -479,8 +479,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Marco Nakamura",
-      "shortName": "Nakamura",
+      "name": "Marco Takenouchi",
+      "shortName": "Takenouchi",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -515,8 +515,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Malik Gallagher",
-      "shortName": "Gallagher",
+      "name": "Malik Gallowen",
+      "shortName": "Gallowen",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -551,8 +551,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Kofi Silva",
-      "shortName": "Silva",
+      "name": "Kofi Valadares",
+      "shortName": "Valadares",
       "number": 3,
       "position": "LB",
       "role": "LB",
@@ -731,8 +731,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Bruno Eriksen",
-      "shortName": "Eriksen",
+      "name": "Bruno Eriksrud",
+      "shortName": "Eriksrud",
       "number": 11,
       "position": "LW",
       "role": "LW",
@@ -767,8 +767,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Leon Ferreira",
-      "shortName": "Ferreira",
+      "name": "Leon Ferrandes",
+      "shortName": "Ferrandes",
       "number": 9,
       "position": "ST",
       "role": "ST",
@@ -805,8 +805,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
   ],
   "hsu": [
     {
-      "name": "Mateo Iwobi",
-      "shortName": "Iwobi",
+      "name": "Mateo Iweka",
+      "shortName": "Iweka",
       "number": 1,
       "position": "GK",
       "role": "GK",
@@ -877,8 +877,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Ugo Petrov",
-      "shortName": "Petrov",
+      "name": "Ugo Petrunin",
+      "shortName": "Petrunin",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -913,8 +913,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Ade Yilmaz",
-      "shortName": "Yilmaz",
+      "name": "Ade Yildiran",
+      "shortName": "Yildiran",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -1057,8 +1057,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Ivan Ibrahimovic",
-      "shortName": "Ibrahimovic",
+      "name": "Ivan Ibrisevic",
+      "shortName": "Ibrisevic",
       "number": 6,
       "position": "CM",
       "role": "LCM",
@@ -1129,8 +1129,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Jamie Silva",
-      "shortName": "Silva",
+      "name": "Jamie Valadares",
+      "shortName": "Valadares",
       "number": 9,
       "position": "ST",
       "role": "RST",
@@ -1165,8 +1165,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Rafael Ueda",
-      "shortName": "Ueda",
+      "name": "Rafael Uesaka",
+      "shortName": "Uesaka",
       "number": 10,
       "position": "ST",
       "role": "LST",
@@ -1203,8 +1203,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
   ],
   "imc": [
     {
-      "name": "Callum Ueda",
-      "shortName": "Ueda",
+      "name": "Callum Uesaka",
+      "shortName": "Uesaka",
       "number": 1,
       "position": "GK",
       "role": "GK",
@@ -1239,8 +1239,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Xavi Gallagher",
-      "shortName": "Gallagher",
+      "name": "Xavi Gallowen",
+      "shortName": "Gallowen",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -1275,8 +1275,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Jamie Rasmussen",
-      "shortName": "Rasmussen",
+      "name": "Jamie Rasmark",
+      "shortName": "Rasmark",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -1311,8 +1311,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Kofi Nakamura",
-      "shortName": "Nakamura",
+      "name": "Kofi Takenouchi",
+      "shortName": "Takenouchi",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -1347,8 +1347,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Ugo Ibrahimovic",
-      "shortName": "Ibrahimovic",
+      "name": "Ugo Ibrisevic",
+      "shortName": "Ibrisevic",
       "number": 3,
       "position": "LB",
       "role": "LB",
@@ -1383,8 +1383,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Rhys Fofana",
-      "shortName": "Fofana",
+      "name": "Rhys Foulani",
+      "shortName": "Foulani",
       "number": 6,
       "position": "DM",
       "role": "DM",
@@ -1455,8 +1455,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Tomas Ferreira",
-      "shortName": "Ferreira",
+      "name": "Tomas Ferrandes",
+      "shortName": "Ferrandes",
       "number": 10,
       "position": "CM",
       "role": "LCM",
@@ -1491,8 +1491,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Wes Kowalski",
-      "shortName": "Kowalski",
+      "name": "Wes Brzezina",
+      "shortName": "Brzezina",
       "number": 7,
       "position": "RW",
       "role": "RW",
@@ -1601,8 +1601,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
   ],
   "asr": [
     {
-      "name": "Rafael Mensah",
-      "shortName": "Mensah",
+      "name": "Rafael Ansomah",
+      "shortName": "Ansomah",
       "number": 1,
       "position": "GK",
       "role": "GK",
@@ -1637,8 +1637,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Tomas Gallagher",
-      "shortName": "Gallagher",
+      "name": "Tomas Gallowen",
+      "shortName": "Gallowen",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -1673,8 +1673,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Dario Coelho",
-      "shortName": "Coelho",
+      "name": "Dario Coelheiro",
+      "shortName": "Coelheiro",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -1781,8 +1781,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Bruno Ibrahimovic",
-      "shortName": "Ibrahimovic",
+      "name": "Bruno Ibrisevic",
+      "shortName": "Ibrisevic",
       "number": 7,
       "position": "RM",
       "role": "RM",
@@ -1817,8 +1817,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Callum Ueda",
-      "shortName": "Ueda",
+      "name": "Callum Uesaka",
+      "shortName": "Uesaka",
       "number": 8,
       "position": "CM",
       "role": "RCM",
@@ -1853,8 +1853,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Felix Fofana",
-      "shortName": "Fofana",
+      "name": "Felix Foulani",
+      "shortName": "Foulani",
       "number": 6,
       "position": "CM",
       "role": "LCM",
@@ -1889,8 +1889,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Tariq Ferreira",
-      "shortName": "Ferreira",
+      "name": "Tariq Ferrandes",
+      "shortName": "Ferrandes",
       "number": 11,
       "position": "LM",
       "role": "LM",
@@ -2035,8 +2035,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Wes Kowalski",
-      "shortName": "Kowalski",
+      "name": "Wes Brzezina",
+      "shortName": "Brzezina",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -2107,8 +2107,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Sami Mbeki",
-      "shortName": "Mbeki",
+      "name": "Sami Mbekwa",
+      "shortName": "Mbekwa",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -2179,8 +2179,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Jamie Jovanovic",
-      "shortName": "Jovanovic",
+      "name": "Jamie Jovancic",
+      "shortName": "Jovancic",
       "number": 6,
       "position": "DM",
       "role": "RDM",
@@ -2215,8 +2215,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Tariq Yilmaz",
-      "shortName": "Yilmaz",
+      "name": "Tariq Yildiran",
+      "shortName": "Yildiran",
       "number": 8,
       "position": "DM",
       "role": "LDM",
@@ -2251,8 +2251,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Sven Ibrahimovic",
-      "shortName": "Ibrahimovic",
+      "name": "Sven Ibrisevic",
+      "shortName": "Ibrisevic",
       "number": 7,
       "position": "RW",
       "role": "RW",
@@ -2287,8 +2287,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Andre Eriksen",
-      "shortName": "Eriksen",
+      "name": "Andre Eriksrud",
+      "shortName": "Eriksrud",
       "number": 10,
       "position": "AM",
       "role": "AM",
@@ -2323,8 +2323,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Xavi Mensah",
-      "shortName": "Mensah",
+      "name": "Xavi Ansomah",
+      "shortName": "Ansomah",
       "number": 11,
       "position": "LW",
       "role": "LW",
@@ -2359,8 +2359,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Malik Rasmussen",
-      "shortName": "Rasmussen",
+      "name": "Malik Rasmark",
+      "shortName": "Rasmark",
       "number": 9,
       "position": "ST",
       "role": "ST",
@@ -2433,8 +2433,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Wes Rasmussen",
-      "shortName": "Rasmussen",
+      "name": "Wes Rasmark",
+      "shortName": "Rasmark",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -2469,8 +2469,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Jamie Zielinski",
-      "shortName": "Zielinski",
+      "name": "Jamie Zielonka",
+      "shortName": "Zielonka",
       "number": 5,
       "position": "CB",
       "role": "RCB",
@@ -2505,8 +2505,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Felix Iwobi",
-      "shortName": "Iwobi",
+      "name": "Felix Iweka",
+      "shortName": "Iweka",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -2613,8 +2613,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Victor Gallagher",
-      "shortName": "Gallagher",
+      "name": "Victor Gallowen",
+      "shortName": "Gallowen",
       "number": 8,
       "position": "CM",
       "role": "RCM",
@@ -2721,8 +2721,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Luca Jovanovic",
-      "shortName": "Jovanovic",
+      "name": "Luca Jovancic",
+      "shortName": "Jovancic",
       "number": 9,
       "position": "ST",
       "role": "ST",
@@ -2831,8 +2831,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Bruno Novak",
-      "shortName": "Novak",
+      "name": "Bruno Novotar",
+      "shortName": "Novotar",
       "number": 2,
       "position": "RB",
       "role": "RB",
@@ -2903,8 +2903,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Pablo Zielinski",
-      "shortName": "Zielinski",
+      "name": "Pablo Zielonka",
+      "shortName": "Zielonka",
       "number": 4,
       "position": "CB",
       "role": "LCB",
@@ -2975,8 +2975,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Niko Mbeki",
-      "shortName": "Mbeki",
+      "name": "Niko Mbekwa",
+      "shortName": "Mbekwa",
       "number": 6,
       "position": "DM",
       "role": "RDM",
@@ -3083,8 +3083,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Luca Mensah",
-      "shortName": "Mensah",
+      "name": "Luca Ansomah",
+      "shortName": "Ansomah",
       "number": 10,
       "position": "AM",
       "role": "AM",
@@ -3119,8 +3119,8 @@ export const PLAYER_PROFILES: Record<string, PlayerProfile[]> = {
       }
     },
     {
-      "name": "Pablo Petrov",
-      "shortName": "Petrov",
+      "name": "Pablo Petrunin",
+      "shortName": "Petrunin",
       "number": 11,
       "position": "LW",
       "role": "LW",

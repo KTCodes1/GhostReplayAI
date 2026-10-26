@@ -22,5 +22,5 @@ About 260 words of voiceover, at a calm pace of about 150 words a minute.
 | 1:50–1:55 | Logo / title card. | "Ghost Replay. See the game that could have been." |
 
 ## Spare clips (only if you're under time)
-- Seed 11, **Next moment** ×4: 38' Okafor, a moment of genius. "It's not only about mistakes."
-- Seed 7, **Next moment** ×3: 17' Mensah, a clear opportunity missed.
+- Seed 11, **Next moment** ×4: 38' Ezeoha, a moment of genius. "It's not only about mistakes."
+- Seed 7, **Next moment** ×3: 17' Ansomah, a clear opportunity missed.

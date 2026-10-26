@@ -16,10 +16,10 @@ npm run dev          # server on :8787, app on http://localhost:5173
 | Shot you want | Open this | Then |
 | --- | --- | --- |
 | A ghost moment, straight away | `http://localhost:5173/?seed=7&speed=8&autostart&jump` | Freezes at 0:27. Theo Dunmore shoots (blocked); the engine says the pass to Moreau was on, but at the edge of Dunmore's modeled view, so the Fair Play lens says **Reasonable alternative**. Open **Why we think this** under the explanation to see every claim with its facts, then **Try to fool the checker**. |
-| Clear opportunity missed | same link, press **Next moment** three times | 17', Mensah passes to Yilmaz when a pass to Rasmussen was on: **Clear opportunity missed**. |
+| Clear opportunity missed | same link, press **Next moment** three times | 17', Ansomah passes to Yildiran when a pass to Rasmark was on: **Clear opportunity missed**. |
 | What-if timeline | at any freeze, **Watch both** | The real next seconds (solid players) and the ghost run (translucent players) play together, with running xT / xG. |
-| Match pulse and player tags | `...?seed=7&speed=20&autostart&holdMs=300` | Stats tab, **Match pulse**, after a few minutes; sprint tags ("Kowalski · 27 km/h") pop up over players. |
-| A moment of genius | `http://localhost:5173/?seed=11&speed=20&autostart&jump` | Press **Next moment** four times: 38', Okafor drives forward when the obvious ball was a pass to Whitlock. Green "Genius moment". (Seed 7 has one at 84'.) |
+| Match pulse and player tags | `...?seed=7&speed=20&autostart&holdMs=300` | Stats tab, **Match pulse**, after a few minutes; sprint tags ("Brzezina · 27 km/h") pop up over players. |
+| A moment of genius | `http://localhost:5173/?seed=11&speed=20&autostart&jump` | Press **Next moment** four times: 38', Ezeoha drives forward when the obvious ball was a pass to Whitlock. Green "Genius moment". (Seed 7 has one at 84'.) |
 | "You're the player" | Any match, click **You're the player** in the header | At the next freeze, pick A–E before the reveal. |
 | Pundit sketch | At any freeze, **Draw an option** in the panel | Click the pitch where the ball should go. |
 | Decision DNA | Sidebar **Player** tab, follow a player, **Build Decision DNA** | Takes a couple of seconds (it simulates 4 more matches). |
@@ -103,7 +103,7 @@ Rolling metrics over the last five minutes for each side: **pressing** (per minu
 *Where:* Stats tab, **Match pulse** (from minute 3); PULSE items in the timeline and live insights.
 
 ### Real-time player tags
-Name tags pop up over players when a threshold is hit: a **sprint** ("Kowalski · 27 km/h", the top 1% of speeds) or a **distance milestone** ("Moreau · 9.0 km covered, most on the pitch" at 3, 6, 9 and 12 km). About 10–20 a match, and they're also in the overlay cue feed for broadcasters.
+Name tags pop up over players when a threshold is hit: a **sprint** ("Brzezina · 27 km/h", the top 1% of speeds) or a **distance milestone** ("Moreau · 9.0 km covered, most on the pitch" at 3, 6, 9 and 12 km). About 10–20 a match, and they're also in the overlay cue feed for broadcasters.
 *Where:* on the pitch during play; `player_tag` cues with `tag: sprint | distance`.
 
 ### Validation

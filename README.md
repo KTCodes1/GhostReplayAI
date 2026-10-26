@@ -16,7 +16,7 @@ Built for **Inside the Game: Developer Hackathon** (Microsoft × Premier League)
 
 1. **A missed opportunity.** At 0:27 the match freezes: Dunmore shoots (blocked) while a pass to Moreau was on. The vision cone shows Moreau was at the edge of Dunmore's modeled view, so the **Fair Play lens** calls it a *Reasonable alternative*, not a blunder.
 2. **What could have happened.** **Watch both** plays the real next seconds and the ghost run side by side, with defenders reacting and live xT and xG for each version. It's labelled *plausible simulation, not a prediction*.
-3. **The evidence.** **Why we think this** shows every claim in the AI's explanation with the engine facts it rests on (for example "Nearest defender to Moreau: Yilmaz, 0.3 m away").
+3. **The evidence.** **Why we think this** shows every claim in the AI's explanation with the engine facts it rests on (for example "Nearest defender to Moreau: Yildiran, 0.3 m away").
 4. **The AI being checked.** **Try to fool the checker** feeds the validator four false claims ("Moreau was completely unmarked", an invented 97% chance, a player who wasn't there, an offside that didn't happen). It rejects each one and says why.
 5. **For the broadcaster.** The full-time report, plus timed overlay cues as JSON that a graphics system could sync to its feed.
 
@@ -73,7 +73,7 @@ The model also writes studio lines, half- and full-time summaries, match-pulse l
 - **3D pitch** with four cameras: **Broadcast** (TV gantry), **Tactical** (top-down), **Sideline** (always the full width of the pitch) and **Player** (behind the ball).
 - **Live stats**: possession, xG, shots, threat added, pass accuracy, average pass difficulty, pressing, ball wins and fouls.
 - **Match pulse**: the last five minutes for each side (pressing, territory, threat and predictability) and the spell the game is in, such as *"Control without penetration"* or *"Sustained pressure, but passing is becoming predictable"*, with a checked AI line when a new spell starts.
-- **Real-time player tags** pop up when a player **sprints** ("Kowalski · 27 km/h") or leads the match for **distance covered** ("Moreau · 9.0 km covered").
+- **Real-time player tags** pop up when a player **sprints** ("Brzezina · 27 km/h") or leads the match for **distance covered** ("Moreau · 9.0 km covered").
 - **Pitch footer** for every action: type, who passed to whom, distance, pass difficulty (1–10), ball speed and threat added.
 - **Live commentary** in a broadcast-style lower third, a goal banner, and **studio analysis** at 15, 30, 60 and 75 minutes plus half and full time.
 - **Match scrubber** (0' to 90') with clickable markers for ghost moments, moments of genius and goals, plus a **timeline / live insights** feed.
@@ -83,7 +83,7 @@ The model also writes studio lines, half- and full-time summaries, match-pulse l
 - **The freeze**: the camera swoops over the moment and three arrows appear: what they **chose** (coral), the **better option** (blue) and other alternatives (dashed grey). Drag to rotate, pan and zoom, with **Reset view**.
 - **Fair Play lens**: one plain verdict per miss: **Clear opportunity missed**, **Reasonable alternative** (with the reason, such as "it was at the edge of their modeled view"), or **Not enough evidence to judge**.
 - **Confidence** (high, medium or low): how sure the engine is that the other option really was better. Low-confidence moments never freeze the match.
-- **Why it mattered**: an AI explanation that names the cause ("Yilmaz stepped out to press, which left space behind them for Rasmussen"), with **Why we think this** and **Try to fool the checker** underneath.
+- **Why it mattered**: an AI explanation that names the cause ("Yildiran stepped out to press, which left space behind them for Rasmark"), with **Why we think this** and **Try to fool the checker** underneath.
 - **Chosen vs better option**: chance it comes off, xG per attempt, how often it leads to a shot, how often the ball is lost, whether it was in the player's modeled view, what it sets up next, and how hard it was to execute.
 - **Key factors** in plain English: space around the receiver, which defender left the gap, who was already running, overloads, a high back line, line-breaking passes, the receiver's finishing record and the game state ("protecting a 1-0 lead, 87'").
 - **All options**: every option the player had, with its modeled visibility, chance, expected value and simulated xG; any option can be simulated.
