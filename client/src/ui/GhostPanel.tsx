@@ -22,7 +22,7 @@ import { useEffect, useState } from 'react';
 import { WHATIF_SPEED, playback, useMatch } from '../store';
 import { type Readout, endingOf, readout } from './compare';
 import { choicePhrase, minute, pct, playerLookup, signed, teamColor } from './format';
-import { AiBadge, TimelineTab } from './Panels';
+import { TimelineTab } from './Panels';
 
 const OUTCOME: Record<WhatIfOutcome, string> = {
   goal: 'a goal',
@@ -324,7 +324,7 @@ function SketchSection({ moment }: { moment: DecisionMoment }) {
             {x.verdict.notes.length > 0 && <div className="opt-note">{x.verdict.notes.join('; ')}</div>}
             {x.note ? (
               <p className="sketch-note" dir="auto">
-                {x.note.text} <AiBadge source={x.note.source} />
+                {x.note.text}
               </p>
             ) : (
               <p className="sketch-note pending">Writing the verdict…</p>
@@ -595,7 +595,6 @@ export function GhostPanel() {
             <section className="gp-section">
               <div className="gp-section-head">
                 <span className="eyebrow">{genius ? 'What they saw' : 'Why it mattered'}</span>
-                {why && <AiBadge source={why.source} />}
               </div>
               {why ? (
                 <p className="gp-why" dir="auto">

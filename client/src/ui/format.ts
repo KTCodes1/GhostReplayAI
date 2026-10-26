@@ -33,9 +33,6 @@ export function onDark(hex: string): string {
 /** The colour a team is drawn in everywhere in the UI: its kit on the pitch, lifted for dark backgrounds. */
 export const teamColor = (meta: MatchMeta, side: 'home' | 'away') => onDark(kitColors(meta)[side].main);
 
-/** Display name of the AI behind a piece of text. */
-export const providerName = (source: 'azure' | 'template') => (source === 'azure' ? 'Azure OpenAI' : 'Template');
-
 export function playerLookup(meta?: MatchMeta): (id?: string) => PlayerInfo | undefined {
   const map = new Map(meta ? [...meta.home.players, ...meta.away.players].map((p) => [p.id, p]) : []);
   return (id) => (id ? map.get(id) : undefined);

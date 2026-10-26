@@ -2,40 +2,12 @@
 
 import { type DecisionMoment, type Side, optionKey } from '@ghost/engine';
 import { useEffect, useRef, useState } from 'react';
-import { type AiSource, type CameraMode, useMatch } from '../store';
-import { clock, clockTenths, minute, pct, playerLookup, providerName, signed, teamColor } from './format';
+import { type CameraMode, useMatch } from '../store';
+import { clock, clockTenths, minute, pct, playerLookup, signed, teamColor } from './format';
 import { kitColors } from '../pitch/coords';
 import { resetCameraView, useFreeCam } from '../pitch/Scene';
 import { ReportExports } from './Report';
 import { type Ending, endingOf } from './compare';
-
-export function AiBadge({ source }: { source: AiSource }) {
-  if (source === 'template') return <span className="ai-badge tpl" title="Written from templates (AI unavailable)">Template</span>;
-  return (
-    <span className="ai-badge" title={`Written by ${providerName(source)} from the engine's facts`}>
-      {providerName(source)}
-    </span>
-  );
-}
-
-/** Which AI wrote the latest generated text this match (template until one arrives). */
-export function useAiProvider(): AiSource {
-  return useMatch((s) => {
-    const seen = [s.recapNarrative?.source, s.reportLines?.source, ...Object.values(s.explanations).map((e) => e.source), ...s.ticker.map((t) => t.source)];
-    return seen.find((x): x is AiSource => !!x && x !== 'template') ?? 'template';
-  });
-}
-
-function AiStatus() {
-  const provider = useAiProvider();
-  const label = provider === 'azure' ? 'Azure OpenAI · Microsoft Foundry' : 'Template mode';
-  return (
-    <div className={`ai-status${provider === 'template' ? ' tpl' : ''}`} title="Engine facts are written up by this model">
-      <i />
-      {label}
-    </div>
-  );
-}
 
 export function Brand() {
   return (
@@ -54,7 +26,6 @@ export function StartHeader() {
     <header className="header">
       <Brand />
       <div className="spacer" />
-      <AiStatus />
     </header>
   );
 }
@@ -78,7 +49,6 @@ export function Header() {
         </span>
       </nav>
       <div className="spacer" />
-      {!reportOpen && <AiStatus />}
       <div className="header-actions">
         {reportOpen ? (
           <>
@@ -317,7 +287,7 @@ function PulsePanel() {
       )}
       {line && (
         <p className="spell-line" dir="auto">
-          {line.text.replace(/^Match pulse: /, '')} {line.source && line.source !== 'template' && <AiBadge source={line.source} />}
+          {line.text.replace(/^Match pulse: /, '')}
         </p>
       )}
     </div>
@@ -396,7 +366,6 @@ export function TimelineTab() {
               {it.kind === 'studio' && <span className="tl-tag">STUDIO</span>}
               {it.kind === 'pulse' && <span className="tl-tag pulse">PULSE</span>}
               <span>{it.text}</span>
-              {it.source && it.source !== 'template' && <AiBadge source={it.source} />}
               {m && <span className="tl-replay">Replay</span>}
             </span>
           </div>
