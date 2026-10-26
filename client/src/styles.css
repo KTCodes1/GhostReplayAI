@@ -563,7 +563,7 @@ button.pm .go { color: var(--ai-text); flex: none; }
 .moment-row .delta.genius { color: var(--genius-text); }
 .moment-row small.conf { font-family: var(--font); }
 .rp-moments.genius .moment-row:hover .go { color: var(--genius-text); }
-.seen { font-family: var(--font); font-weight: 500; text-align: right; }
+.opt-metric b.seen { font-family: var(--font); font-weight: 500; text-align: right; }
 
 /* ===================== evidence, fair play, what-if timeline, pulse, player tags ===================== */
 .gp-chips { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }

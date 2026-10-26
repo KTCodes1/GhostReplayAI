@@ -34,6 +34,7 @@ const OUTCOME: Record<WhatIfOutcome, string> = {
 const RESULT: Record<string, string> = { success: 'came off', fail: 'failed', goal: 'goal', saved: 'saved', blocked: 'blocked', off_target: 'off target' };
 /** The modeled field of view: a geometric estimate, not where the player actually looked. */
 const SEEN: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In modeled view', peripheral: 'Edge of modeled view', behind: 'Outside modeled view', unknown: 'Unknown' };
+const SEEN_CARD: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'Inside', peripheral: 'At the edge', behind: 'Outside', unknown: 'Unknown' };
 const SEEN_SHORT: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In view', peripheral: 'Edge', behind: 'Outside', unknown: 'Unknown' };
 const LETTERS = 'ABCDEF';
 
@@ -87,8 +88,8 @@ function OptionCard({ o, kind, name, outcome }: { o: GhostOption; kind: CardKind
       </div>
       {o.visibility && (
         <div className="opt-metric" title="A modeled field of view, estimated from which way the player was moving and how much time they had. Not a measure of where they actually looked.">
-          <span>In their view?</span>
-          <b className={`seen ${o.visibility}`}>{SEEN[o.visibility]}</b>
+          <span>Modeled view</span>
+          <b className={`seen ${o.visibility}`}>{SEEN_CARD[o.visibility]}</b>
         </div>
       )}
       {o.followUp && (
