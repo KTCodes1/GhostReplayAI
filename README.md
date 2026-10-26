@@ -2,7 +2,7 @@
 
 **Football analytics tells us what happened. Ghost Replay reveals what could have happened.**
 
-**Demo video (under 2 minutes):** VIDEO_LINK_HERE
+**Demo video (under 2 minutes):** [VIDEO_LINK_HERE](https://youtu.be/rlqMjAAkvyk?si=8kh8gf-9aYWRQ3WD)
 
 Ghost Replay turns a live stream of synthetic football events into an interactive AI analyst for fans, pundits and broadcasters. When a player faces a pivotal decision, it freezes the action, evaluates the plausible alternatives, and simulates how the next few seconds might unfold as defenders react.
 
