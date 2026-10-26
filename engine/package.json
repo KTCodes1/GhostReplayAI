@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit -p .",
     "sim": "tsx scripts/sim.ts",
     "ghosts": "tsx scripts/ghosts.ts",
-    "profiles": "tsx scripts/make-profiles.ts"
+    "profiles": "tsx scripts/make-profiles.ts",
+    "validate": "tsx scripts/validate.ts",
+    "fit-calibration": "tsx scripts/fit-calibration.ts"
   }
 }

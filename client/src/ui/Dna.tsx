@@ -12,6 +12,7 @@ export function DnaView({ dna, compact }: { dna: DecisionDNA; compact?: boolean 
           {dna.decisions} decisions · {dna.matches} match{dna.matches === 1 ? '' : 'es'} · vs {dna.peers} players
         </span>
       </div>
+      <span className="dna-note">Percentiles against the other simulated players in the same matches. Descriptive of these matches, not a verdict on the player.</span>
       {dna.traits.map((t) => (
         <div key={t.key} className="dna-row" title={t.detail}>
           <span className="dna-label">{t.label}</span>

@@ -55,7 +55,7 @@ function rawTraits(mine: GhostAnalysis[]): Record<DnaTraitKey, Raw> {
   const avgP = mine.reduce((s, a) => s + a.actual.pSuccess, 0) / n;
   const moves = mine.filter((a) => a.actual.action !== 'shot');
   const progressive = moves.filter((a) => (a.actual.features?.bypassed ?? 0) >= 2 || a.actual.end.x - a.event.start.x >= 10).length / Math.max(1, moves.length);
-  const found = mine.filter((a) => a.choseBest && a.actual.visibility !== 'visible').length / n;
+  const found = mine.filter((a) => a.choseBest && (a.actual.visibility === 'peripheral' || a.actual.visibility === 'behind')).length / n;
   const pressured = mine.filter((a) => (a.actual.features?.pressure ?? 0) >= 0.4);
   const late = mine.filter((a) => a.event.clockMs >= 75 * 60_000);
   const early = mine.filter((a) => a.event.clockMs < 75 * 60_000);
@@ -69,7 +69,7 @@ function rawTraits(mine: GhostAnalysis[]): Record<DnaTraitKey, Raw> {
     // Riskier = lower chance their choice comes off.
     risk: { value: -avgP, detail: `their chosen action comes off ${pct(avgP)} of the time` },
     progression: { value: progressive, detail: `${pct(progressive)} of their passes and carries go forward past defenders` },
-    vision: { value: found, detail: `${pct(found)} of their decisions were the best option and on the edge of their vision or behind them` },
+    vision: { value: found, detail: `${pct(found)} of their decisions were the best option and at the edge of, or outside, their modeled view` },
     composure:
       pressured.length >= MIN_SPLIT
         ? { value: rate(pressured) - quality, detail: `best option ${pct(rate(pressured))} of the time under pressure, ${pct(quality)} overall` }

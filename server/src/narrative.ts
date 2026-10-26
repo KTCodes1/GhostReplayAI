@@ -325,7 +325,8 @@ export class Narrator {
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
-const visibilityWords = (v: string) => (v === 'visible' ? 'in their line of sight' : v === 'peripheral' ? 'on the edge of their vision' : 'behind them, out of sight');
+const visibilityWords = (v: string) =>
+  v === 'visible' ? 'inside their modeled field of view' : v === 'peripheral' ? 'at the edge of their modeled field of view' : v === 'behind' ? 'outside their modeled field of view' : 'of unknown visibility';
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 const outcomeWord = (o: string) =>
   ({ success: 'came off', fail: 'did not come off', goal: 'went in', saved: 'was saved', blocked: 'was blocked', off_target: 'went off target' })[o] ?? o;

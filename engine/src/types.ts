@@ -129,8 +129,12 @@ export type GhostOption = {
   deltaVsActual: number;
   difficulty?: number; // 1..10 for passes
   features?: Record<string, number>; // model inputs for the analyst breakdown
-  /** Could the player see it? Judged from which way they were facing (see models/vision.ts). */
-  visibility?: 'visible' | 'peripheral' | 'behind';
+  /**
+   * Was it in the player's *modeled* field of view (see models/vision.ts)? A geometric estimate from
+   * movement and the last pass, not a measure of where they actually looked. `unknown` = no facing
+   * information, so it can't be judged either way.
+   */
+  visibility?: 'visible' | 'peripheral' | 'behind' | 'unknown';
   /** The receiver was offside when the ball would have been played. */
   offside?: boolean;
   /** A pass played into the path of a teammate who was already running. */

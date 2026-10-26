@@ -10,6 +10,7 @@
 
 import { PITCH_LENGTH, PITCH_WIDTH, clamp, dist, distToGoal, v } from '../geometry';
 import { isOffside, leadTarget, offsideLine, passTravelSec, project } from '../models/dynamics';
+import { calibratePass } from '../models/calibration';
 import { type ExecutionFit, adjustP, footedness, passExecution } from '../models/execution';
 import { type GameState, gameStateFor } from '../models/gamestate';
 import { laneThreat, nearestDistance, passProbFromFeatures, pressureAt } from '../models/pass';
@@ -130,6 +131,21 @@ function twoStep(value: number, f: FollowUp | undefined): { value: number; follo
   return { value: value + FOLLOW_SHARE * extra, followUp: f };
 }
 
+/**
+ * Room for the receiver where the ball arrives. For a ball to feet that's the distance to the nearest
+ * defender; for a ball played into space (3 m+ ahead of the receiver) it's also a race: a defender
+ * who can get to the spot about as soon as the receiver is contesting it, however much room there is
+ * at the spot itself.
+ */
+function receiverSpace(to: Vec2, receiver: Vec2 | undefined, defenders: Vec2[]): number {
+  const atSpot = clamp(nearestDistance(to, defenders) / 5, 0, 1);
+  const run = receiver ? dist(receiver, to) : 0;
+  if (run < INTO_SPACE_M) return atSpot;
+  const headStart = Math.min(...defenders.map((d) => dist(d, to) - run));
+  return Math.min(atSpot, clamp((headStart + 2) / 5, 0, 1));
+}
+const INTO_SPACE_M = 3;
+
 /** A pass, judged on the moving picture. `end` given = the actual pass; otherwise lead the receiver. */
 export function judgePass(jc: JudgeContext, targetPlayerId: string | undefined, end?: Vec2, played = false): JudgedOption {
   const { ctx, vel, cone, attrs } = jc;
@@ -141,12 +157,13 @@ export function judgePass(jc: JudgeContext, targetPlayerId: string | undefined, 
   const now = ctx.opponents.map((o) => o.pos);
   const mid = ctx.opponents.map((o) => momentum(o, vel, T * 0.5));
   const arrive = ctx.opponents.map((o) => momentum(o, vel, T));
-  const f = { distance: dist(from, to), laneThreat: laneThreat(from, to, mid), pressure: pressureAt(from, now), receiverSpace: clamp(nearestDistance(to, arrive) / 5, 0, 1) };
+  const f = { distance: dist(from, to), laneThreat: laneThreat(from, to, mid), pressure: pressureAt(from, now), receiverSpace: receiverSpace(to, receiver?.pos, arrive) };
   const modelP = passProbFromFeatures(f, attrs.passing);
   const execution: ExecutionFit = passExecution(from, to, attrs, footedness(ctx.carrier.id, attrs.passing), f.pressure, cone);
   // The pass actually played wasn't flagged, so only alternatives can be offside.
   const offside = !played && !!receiver && isOffside(receiver.pos, jc.offsideX) && receiver.pos.x > from.x;
-  const pSuccess = offside ? 0.02 : adjustP(modelP, execution.logitAdj);
+  // Calibrated on training matches (see models/calibration.ts), then adjusted for execution.
+  const pSuccess = offside ? 0.02 : adjustP(calibratePass(modelP), execution.logitAdj);
 
   const finishing = receiver?.finishing ?? FINISHING_BASELINE;
   const nearGoal = clamp((to.x - 75) / 20, 0, 1);

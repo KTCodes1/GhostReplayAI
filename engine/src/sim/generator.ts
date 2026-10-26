@@ -125,21 +125,22 @@ const MAX_RUN_SPEED = 7;
 
 // Reactive defending (what-if passes): defenders accelerate from their current motion, reach out
 // a leg, and getting there doesn't always mean a clean interception.
-const ACCEL = 4.5; // m/s²
+/** Acceleration (m/s²) rises with pace: quicker players get going quicker, not just top speed. */
+const accelFor = (pace: number) => 3.6 + 1.8 * pace;
 const REACH = 0.9; // metres
 const CLEAN_CUT = 0.75;
 /** Where along a ground pass a defender can step in (fractions of its length), then the race at the target (1). */
 const LANE_SAMPLES = [...Array.from({ length: 16 }, (_, i) => 0.1 + i * 0.05), 1];
 /** Distance covered in `sec` seconds from a standing start, accelerating up to `vmax`. */
-const runCover = (sec: number, vmax: number) => {
+const runCover = (sec: number, vmax: number, accel: number) => {
   if (sec <= 0) return 0;
-  const tAcc = vmax / ACCEL;
-  return sec <= tAcc ? 0.5 * ACCEL * sec * sec : (vmax * vmax) / (2 * ACCEL) + vmax * (sec - tAcc);
+  const tAcc = vmax / accel;
+  return sec <= tAcc ? 0.5 * accel * sec * sec : (vmax * vmax) / (2 * accel) + vmax * (sec - tAcc);
 };
 /** Time to cover `d` metres from a standing start. */
-const runTime = (d: number, vmax: number) => {
-  const dAcc = (vmax * vmax) / (2 * ACCEL);
-  return d <= dAcc ? Math.sqrt((2 * d) / ACCEL) : vmax / ACCEL + (d - dAcc) / vmax;
+const runTime = (d: number, vmax: number, accel: number) => {
+  const dAcc = (vmax * vmax) / (2 * accel);
+  return d <= dAcc ? Math.sqrt((2 * d) / accel) : vmax / accel + (d - dAcc) / vmax;
 };
 
 export function createSimulation(cfg: SimConfig) {
@@ -472,20 +473,21 @@ export function createSimulation(cfg: SimConfig) {
       if (d.isGK && !inBox(endTF)) continue;
       const react = clamp(rng.normal(0.3, 0.08), 0.12, 0.55);
       const vmax = (6 + 1.8 * d.info.attrs.pace) * clamp(rng.normal(1, 0.06), 0.85, 1.15);
+      const accel = accelFor(d.info.attrs.pace);
       const from = add(d.pos, scale(d.vel, Math.min(react, T)));
       // In flight (ground passes only) a defender can step into the lane; at the end it's a race with the receiver.
       for (const u of lofted ? [1] : LANE_SAMPLES) {
         if (best && u >= best.u) break;
         const at = lerpV(startAbs, endAbs, u);
         if (u < 1) {
-          if (dist(from, at) <= runCover(u * T - react, vmax) + REACH && rng.chance(CLEAN_CUT)) {
+          if (dist(from, at) <= runCover(u * T - react, vmax, accel) + REACH && rng.chance(CLEAN_CUT)) {
             best = { p: d, at, u };
             break;
           }
         } else {
           const receiverT = dist(add(receiver.pos, scale(receiver.vel, 0.2)), endAbs) / 7;
           const ballControlled = Math.max(T, receiverT);
-          const defenderT = react + runTime(Math.max(0, dist(from, endAbs) - REACH), vmax);
+          const defenderT = react + runTime(Math.max(0, dist(from, endAbs) - REACH), vmax, accel);
           if (defenderT < ballControlled - 0.2) best = { p: d, at: endAbs, u: 1 };
         }
       }

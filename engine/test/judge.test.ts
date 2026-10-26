@@ -117,7 +117,7 @@ describe('two-step look-ahead and reasons', () => {
   });
 
   it('labels every option with what the player could see', () => {
-    for (const a of analyses.slice(0, 200)) for (const o of [a.actual, ...a.alternatives]) expect(['visible', 'peripheral', 'behind']).toContain(o.visibility);
+    for (const a of analyses.slice(0, 200)) for (const o of [a.actual, ...a.alternatives]) expect(['visible', 'peripheral', 'behind', 'unknown']).toContain(o.visibility);
   });
 
   it('explains causes, not just numbers', () => {

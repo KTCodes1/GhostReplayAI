@@ -625,3 +625,16 @@ button.pm .go { color: var(--ai-text); flex: none; }
 .tag-alert { font-size: 11px; color: var(--text); border-color: var(--line-2); }
 .tag-alert.sprint { border-color: var(--gold); }
 .tag-alert.distance { border-color: var(--focus); }
+.seen.unknown { color: var(--muted); font-style: italic; }
+
+/* try to fool the checker, DNA note */
+.fool { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.fool-head { display: flex; justify-content: space-between; align-items: center; }
+.fool-row { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; line-height: 1.4; padding-left: 10px; border-left: 2px solid var(--line-2); }
+.fool-row span { color: var(--text-2); font-style: italic; }
+.fool-row.caught { border-left-color: var(--genius); }
+.fool-row.caught b { color: var(--genius-text); font-weight: 500; }
+.fool-row.missed { border-left-color: var(--actual); }
+.fool-row.missed b { color: var(--actual); }
+.dna-note { font-size: 11px; line-height: 1.4; color: var(--muted); }
+.conf-chip.clear { color: var(--ai-text); border-color: var(--ai-line); }

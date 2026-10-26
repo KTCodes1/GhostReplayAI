@@ -2,7 +2,7 @@
   "name": "ghost-replay",
   "private": true,
   "version": "0.1.0",
-  "description": "Ghost Replay — live synthetic match insights engine (Microsoft x Premier League hackathon)",
+  "description": "Ghost Replay \u2014 live synthetic match insights engine (Microsoft x Premier League hackathon)",
   "workspaces": [
     "engine",
     "server",
@@ -12,7 +12,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "sim": "npm run sim -w @ghost/engine --",
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @ghost/server\" \"npm run dev -w @ghost/client\""
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @ghost/server\" \"npm run dev -w @ghost/client\"",
+    "validate": "npm run validate -w @ghost/engine"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

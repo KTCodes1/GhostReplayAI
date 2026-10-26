@@ -1,12 +1,14 @@
-// What could the player actually see? Freeze frames are a god's-eye view; the player on the ball
+// What could the player plausibly see? Freeze frames are a god's-eye view; the player on the ball
 // sees a cone in front of them. We estimate which way they were facing and label every option as
-// visible (central vision), peripheral, or behind them, so they are only blamed for what they could see.
+// in the modeled view, at its edge, or outside it (behind them) - or unknown when there is no facing
+// information. It is a geometric model, not a measure of attention: it decides what a player can't
+// fairly be blamed for, and it lowers confidence wherever it is uncertain.
 // All positions are in the acting team's frame (attacking towards x = 105).
 
 import { clamp, norm, sub } from '../geometry';
 import type { MatchEvent, Vec2 } from '../types';
 
-export type Visibility = 'visible' | 'peripheral' | 'behind';
+export type Visibility = 'visible' | 'peripheral' | 'behind' | 'unknown';
 
 export type VisionCone = {
   facing: Vec2; // unit vector
@@ -79,5 +81,8 @@ export function angleOff(cone: VisionCone, from: Vec2, to: Vec2): number {
 
 export function visibilityOf(cone: VisionCone, from: Vec2, to: Vec2): Visibility {
   const a = angleOff(cone, from, to);
-  return a <= cone.centralDeg ? 'visible' : a <= cone.peripheralDeg ? 'peripheral' : 'behind';
+  if (a <= cone.centralDeg) return 'visible';
+  if (a <= cone.peripheralDeg) return 'peripheral';
+  // With no movement or reception to go on, the facing is only an assumption: don't call it 'behind'.
+  return cone.basis === 'default' ? 'unknown' : 'behind';
 }

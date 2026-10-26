@@ -145,17 +145,18 @@ function WhatIfPanel({ report, meta }: { report: MatchReport; meta: MatchMeta })
   return (
     <section className="panel rp-panel">
       <div className="rp-panel-head">
-        <span className="eyebrow">The what-if scoreline</span>
+        <span className="eyebrow">Illustrative xG under alternative decisions</span>
         <small>
           {meta.home.shortName} – {meta.away.shortName}
         </small>
       </div>
       {row('Final score', String(w.goals.home), String(w.goals.away), 'what happened')}
-      {row('Expected goals', w.xg.home.toFixed(2), w.xg.away.toFixed(2), 'the quality of chances created')}
-      {row('With the best decisions', w.bestDecisions.home.toFixed(2), w.bestDecisions.away.toFixed(2), 'expected goals if each attack had taken its best option', true)}
+      {row('Expected goals', w.xg.home.toFixed(2), w.xg.away.toFixed(2), 'the quality of chances actually created')}
+      {row('Illustrative, with the best options', w.bestDecisions.home.toFixed(2), w.bestDecisions.away.toFixed(2), 'expected goals if each attack had taken its best option', true)}
       <p className="gp-note">
-        A model estimate: in every attack, the biggest clear improvement the ghost engine found (an option the player could see, worth 0.03 or more) is added once.{' '}
-        {w.improvedAttacks.home} of {w.attacks.home} {meta.home.shortName} attacks and {w.improvedAttacks.away} of {w.attacks.away} {meta.away.shortName} attacks had one.
+        A model-based counterfactual, not an alternative result and not proof anyone made a mistake. In every attack, the biggest clear improvement the engine found (an option in
+        the player's modeled view, worth 0.03 or more in expected value) is added once to the actual xG; each one carries its own uncertainty. {w.improvedAttacks.home} of{' '}
+        {w.attacks.home} {meta.home.shortName} attacks and {w.improvedAttacks.away} of {w.attacks.away} {meta.away.shortName} attacks had one.
       </p>
     </section>
   );

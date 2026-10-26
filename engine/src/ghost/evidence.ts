@@ -25,7 +25,12 @@ export type Evidence = {
 const OUTCOME_WORDS: Record<string, string> = { success: 'came off', fail: 'failed', goal: 'went in', saved: 'was saved', blocked: 'was blocked', off_target: 'went off target' };
 const CONFIDENCE_WORDS = { clear: 'high', likely: 'medium', close: 'low' } as const;
 const pct = (p: number) => `${Math.round(p * 100)}%`;
-const VIS: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'in their line of sight', peripheral: 'on the edge of their vision', behind: 'behind them, out of sight' };
+const VIS: Record<NonNullable<GhostOption['visibility']>, string> = {
+  visible: 'inside their modeled field of view',
+  peripheral: 'at the edge of their modeled field of view',
+  behind: 'outside their modeled field of view (behind them)',
+  unknown: 'of unknown visibility (no facing data)',
+};
 
 function phrase(o: GhostOption, name: (id?: string) => string): string {
   return o.action === 'shot' ? 'a shot' : o.action === 'carry' ? 'a run forward with the ball' : `a pass to ${name(o.targetPlayerId)}`;
@@ -101,7 +106,12 @@ const supported = (x: number, allowed: number[]) =>
 const FREE = /\b(unmarked|free|all alone|in (?:acres of )?space|no defender|wide open|completely open)\b/i;
 const SAW = /\b(saw|spotted|in (?:his|her|their) (?:line of )?sight|in view|could see)\b/i;
 const OFFSIDE = /\boffside\b/i;
-const NEGATED = /\b(no|nobody|no one|not|never|none)\b|n't/i;
+/** "wasn't offside", "nobody was offside", "not in an offside position": a denial, not a claim. */
+const NEGATED = /(\b(nobody|no one|none|not|never)\b|n't)(\s+\w+){0,3}\s+(offside|in an offside)/i;
+/** A distance in metres: "2.1 m", "4 metres". */
+/** Distances may be rounded (2.1 m as "2 m") but not wrong. */
+const METRES_TOLERANCE = 0.5;
+const METRES = /(\d+(?:\.\d+)?)\s?(?:m|metres|meters)\b/g;
 
 /**
  * Check an explanation against the facts. Returns the problems in plain words (empty = supported).
@@ -130,12 +140,20 @@ export function checkAgainstFacts(text: string, claims: EvidenceClaim[] | null, 
 
   // Contradictions, sentence by sentence.
   for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    // A distance must belong to a player named in the same sentence, not just appear somewhere in the facts.
+    const named = [...roster.values()].map((r) => r.info.shortName).filter((n) => new RegExp(`\\b${n}\\b`).test(sentence));
+    if (named.length)
+      for (const m of sentence.matchAll(METRES)) {
+        const x = Number(m[1]);
+        const ok = facts.some((f) => named.some((n) => f.text.includes(n)) && /\d\s?m\b/.test(f.text) && numbersIn(f.text).some((y) => Math.abs(x - y) <= METRES_TOLERANCE));
+        if (!ok) problems.push(`the ${x} m distance doesn't match the facts about ${named.join(' or ')}`);
+      }
     for (const r of roster.values()) {
       const who = r.info.shortName;
       if (!new RegExp(`\\b${who}\\b`).test(sentence)) continue;
       const near = factText.match(new RegExp(`Nearest defender to ${who}: [^,]+, ([\\d.]+) m away`));
       if (FREE.test(sentence) && near && Number(near[1]) < 3) problems.push(`it says ${who} was unmarked, but a defender was ${near[1]} m away`);
-      if (SAW.test(sentence) && new RegExp(`${who} was behind them`).test(factText)) problems.push(`it says ${who} could be seen, but they were behind the player`);
+      if (SAW.test(sentence) && new RegExp(`${who} was outside their modeled field of view`).test(factText)) problems.push(`it says ${who} could be seen, but they were outside the player's modeled view`);
     }
   }
   // Offside: only if a fact says someone was in an offside position (saying nobody was is fine).

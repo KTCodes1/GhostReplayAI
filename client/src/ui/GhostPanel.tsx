@@ -3,7 +3,21 @@
 // factors → every option → pundit sketch. Genius moments flip it: what they found vs the obvious ball.
 // Otherwise it shows the live insights feed.
 
-import { type DecisionMoment, type Evidence, type GhostOption, type GhostTree, type WhatIfOutcome, type WhatIfResult, hashSeed, optionKey } from '@ghost/engine';
+import {
+  type DecisionMoment,
+  type Evidence,
+  type GhostOption,
+  type GhostTree,
+  type MatchEvent,
+  type WhatIfOutcome,
+  type WhatIfResult,
+  buildRoster,
+  checkAgainstFacts,
+  hashSeed,
+  momentFacts,
+  numbersIn,
+  optionKey,
+} from '@ghost/engine';
 import { useEffect, useState } from 'react';
 import { WHATIF_SPEED, playback, useMatch } from '../store';
 import { type Readout, readout } from './compare';
@@ -18,8 +32,9 @@ const OUTCOME: Record<WhatIfOutcome, string> = {
   kept: 'keeping the ball',
 };
 const RESULT: Record<string, string> = { success: 'came off', fail: 'failed', goal: 'goal', saved: 'saved', blocked: 'blocked', off_target: 'off target' };
-const SEEN: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In view', peripheral: 'Edge of vision', behind: 'Behind them' };
-const SEEN_SHORT: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'View', peripheral: 'Edge', behind: 'Behind' };
+/** The modeled field of view: a geometric estimate, not where the player actually looked. */
+const SEEN: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In modeled view', peripheral: 'Edge of modeled view', behind: 'Outside modeled view', unknown: 'Unknown' };
+const SEEN_SHORT: Record<NonNullable<GhostOption['visibility']>, string> = { visible: 'In view', peripheral: 'Edge', behind: 'Outside', unknown: 'Unknown' };
 const LETTERS = 'ABCDEF';
 
 export function actionLabel(o: Pick<GhostOption, 'action' | 'targetPlayerId'>, name: (id?: string) => string) {
@@ -71,8 +86,8 @@ function OptionCard({ o, kind, name, outcome }: { o: GhostOption; kind: CardKind
         <b>{s ? pct(s.turnoverRate) : '…'}</b>
       </div>
       {o.visibility && (
-        <div className="opt-metric" title="Worked out from which way the player was facing and how much time they had">
-          <span>Could they see it</span>
+        <div className="opt-metric" title="A modeled field of view, estimated from which way the player was moving and how much time they had. Not a measure of where they actually looked.">
+          <span>In their view?</span>
           <b className={`seen ${o.visibility}`}>{SEEN[o.visibility]}</b>
         </div>
       )}
@@ -326,8 +341,48 @@ const EVIDENCE_STATUS: Record<Evidence['status'], string> = {
   insufficient: 'Not enough evidence to judge',
 };
 
+/**
+ * "Try to fool the checker": the same checker and fact sheet the server uses, run here on four
+ * deliberately false claims about this moment, so anyone can see an explanation being rejected.
+ */
+function FoolTheChecker({ moment, event }: { moment: DecisionMoment; event: MatchEvent }) {
+  const meta = useMatch((s) => s.meta)!;
+  const [results, setResults] = useState<{ claim: string; problems: string[] }[] | null>(null);
+  const run = () => {
+    const roster = buildRoster(meta);
+    const facts = momentFacts(moment, event, roster);
+    const factText = facts.map((f) => f.text).join('\n');
+    const name = (id?: string) => (id ? roster.get(id)?.info.shortName : undefined);
+    const who = name(moment.playerId)!;
+    const target = name(moment.ghost.targetPlayerId) ?? name(moment.actual.targetPlayerId);
+    const used = numbersIn(factText);
+    const absent = [97, 93, 89, 86, 79, 71, 67, 61].find((x) => !used.some((y) => Math.abs(y - x) <= 1)) ?? 99;
+    const claims = [`${who} had a ${absent}% chance of finding a teammate.`];
+    const near = target ? factText.match(new RegExp(`Nearest defender to ${target}: [^,]+, ([\\d.]+) m away`)) : null;
+    if (target && near) claims.push(Number(near[1]) < 3 ? `${target} was completely unmarked.` : `The nearest defender to ${target} was ${(Number(near[1]) + 2.5).toFixed(1)} m away.`);
+    const stranger = [...roster.values()].find((r) => !factText.includes(r.info.shortName))?.info.shortName;
+    if (stranger) claims.push(`${stranger} was the obvious outlet.`);
+    if (target) claims.push(`${target} was offside, so the pass was never on.`);
+    setResults(claims.map((claim) => ({ claim, problems: checkAgainstFacts(claim, null, facts, roster) })));
+  };
+  return (
+    <div className="fool">
+      <div className="fool-head">
+        <span className="eyebrow">Try to fool the checker</span>
+        <button onClick={run}>{results ? 'Run again' : 'Test four false claims'}</button>
+      </div>
+      {results?.map((r) => (
+        <div key={r.claim} className={`fool-row ${r.problems.length ? 'caught' : 'missed'}`}>
+          <span>"{r.claim}"</span>
+          <b>{r.problems.length ? `Rejected: ${r.problems[0]}` : 'Not caught'}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** "Why we think this": each claim in the explanation and the engine facts it rests on. */
-function EvidencePanel({ evidence }: { evidence: Evidence }) {
+function EvidencePanel({ evidence, moment, event }: { evidence: Evidence; moment: DecisionMoment; event: MatchEvent }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={`evidence ${evidence.status}`}>
@@ -357,6 +412,7 @@ function EvidencePanel({ evidence }: { evidence: Evidence }) {
               ))}
             </div>
           )}
+          <FoolTheChecker moment={moment} event={event} />
         </div>
       )}
     </div>
@@ -491,11 +547,6 @@ export function GhostPanel() {
             {index >= 0 ? ` ${index + 1} OF ${same.length}` : ''}
           </span>
           <span className="gp-kicker-right">
-            {moment.confidence && !guessing && (
-              <span className={`conf ${moment.confidence.level}`} title="Model margin and simulation margin combined">
-                {CONFIDENCE[moment.confidence.level]} {pct(moment.confidence.score)}
-              </span>
-            )}
             <span className="mono">
               {minute(moment.clockMs)} · {half}
             </span>
@@ -519,6 +570,11 @@ export function GhostPanel() {
             <span className={`fairplay ${moment.fairPlay.verdict}`} title={`Fair Play lens: ${moment.fairPlay.why}`}>
               <b>{moment.fairPlay.label}</b>
               <span>{moment.fairPlay.why}</span>
+            </span>
+          )}
+          {moment.confidence && !guessing && (
+            <span className={`state-chip conf-chip ${moment.confidence.level}`} title="How sure the engine is that the other option was better: the model's margin and the 50-run simulation's margin combined">
+              {CONFIDENCE[moment.confidence.level]} ({pct(moment.confidence.score)})
             </span>
           )}
           {state && <span className="state-chip">{state}</span>}
@@ -545,7 +601,7 @@ export function GhostPanel() {
               ) : (
                 <p className="gp-why pending">Analysing the moment…</p>
               )}
-              {why?.evidence && <EvidencePanel evidence={why.evidence} />}
+              {why?.evidence && <EvidencePanel evidence={why.evidence} moment={moment} event={ghost.event} />}
             </section>
 
             <section className="gp-section">

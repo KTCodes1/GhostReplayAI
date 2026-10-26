@@ -134,7 +134,7 @@ export function analyzeEvent(e: MatchEvent, roster: Roster, prev?: MatchEvent): 
     if (obvious && typicalUtility(obvious) > typicalUtility(actual)) {
       const extraThreat = actual.valueIfSuccess - obvious.valueIfSuccess;
       const hard =
-        (actual.visibility === 'peripheral' ? 0.6 : actual.visibility === 'behind' ? 1.2 : 0) +
+        (actual.visibility === 'peripheral' ? 0.6 : actual.visibility === 'behind' ? 1.2 : 0) + // unknown earns nothing: we can't claim they found it blind
         ((actual.features?.bypassed ?? 0) >= 3 ? 0.4 : 0) +
         (actual.runner ? 0.4 : 0) +
         (actual.pSuccess < 0.75 ? 0.3 : 0);
@@ -280,7 +280,8 @@ export function fairPlayOf(a: GhostAnalysis): NonNullable<DecisionMoment['fairPl
   if (!level || level === 'close' || a.best === a.actual)
     return { verdict: 'insufficient', label: 'Not enough evidence to judge', why: "the model and the simulation don't clearly separate the options" };
   const doubts: string[] = [];
-  if (a.best.visibility === 'peripheral') doubts.push('it was on the edge of their vision');
+  if (a.best.visibility === 'peripheral') doubts.push('it was at the edge of their modeled view');
+  if (a.best.visibility === 'unknown') doubts.push("we can't tell whether it was in their view");
   if (a.best.execution && a.best.execution.fit < 0.85) doubts.push('it was hard to execute');
   if (a.evLost < CLEAR_MIN_GAIN) doubts.push('the gain was small');
   if (level === 'likely') doubts.push('the evidence is good but not conclusive');
@@ -316,7 +317,7 @@ const normalCdf = (z: number) => 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.0447
 export function confidenceOf(evMargin: number, simDiff: number, sdA: number, sdB: number, n: number, visibility?: GhostOption['visibility']): { level: 'clear' | 'likely' | 'close'; score: number } {
   const se = Math.max(0.004, Math.sqrt((sdA ** 2 + sdB ** 2) / n));
   let z = SIM_WEIGHT * (simDiff / se) + (1 - SIM_WEIGHT) * (evMargin / MODEL_SE);
-  if (visibility === 'peripheral') z -= 0.6;
+  if (visibility === 'peripheral' || visibility === 'unknown') z -= 0.6;
   const score = normalCdf(z);
   return { level: score >= 0.9 ? 'clear' : score >= 0.7 ? 'likely' : 'close', score: +score.toFixed(3) };
 }

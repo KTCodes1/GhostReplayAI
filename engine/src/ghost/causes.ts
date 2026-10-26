@@ -85,9 +85,11 @@ export function contextCauses(args: {
   const name = (id?: string) => (id ? roster.get(id)?.info.shortName ?? 'a teammate' : 'a teammate');
   const carrier = name(e.playerId);
   if (best !== actual && best.visibility === 'peripheral')
-    out.push({ code: 'peripheral_vision', about: 'context', text: `${best.action === 'pass' ? name(best.targetPlayerId) : 'that option'} was on the edge of ${carrier}'s vision, so it was harder to spot` });
+    out.push({ code: 'peripheral_vision', about: 'context', text: `${best.action === 'pass' ? name(best.targetPlayerId) : 'that option'} was at the edge of ${carrier}'s modeled view, so it was harder to spot` });
+  if (best !== actual && best.visibility === 'unknown')
+    out.push({ code: 'peripheral_vision', about: 'context', text: `there is no movement data to tell which way ${carrier} was facing, so we can't say whether that option was in view` });
   if (unseen)
-    out.push({ code: 'unseen_option', about: 'context', text: `an even better option, ${optionPhrase(unseen, name)}, was behind ${carrier} and out of sight, so it isn't counted against them`, value: unseen.expectedValue });
+    out.push({ code: 'unseen_option', about: 'context', text: `an even better option, ${optionPhrase(unseen, name)}, was outside ${carrier}'s modeled view (behind them), so it isn't counted against them`, value: unseen.expectedValue });
   if (offsideBest) out.push({ code: 'offside', about: 'context', text: `${name(offsideBest.targetPlayerId)} looked free but was in an offside position` });
   if (best !== actual && best.execution && best.execution.notes.length && best.execution.fit < 0.85)
     out.push({ code: 'execution_demand', about: 'best', text: `it wasn't easy: ${best.execution.notes.join(', ')}`, value: best.execution.fit });
@@ -104,8 +106,8 @@ export function geniusCauses(actual: GhostOption, obvious: GhostOption, e: Match
   const name = (id?: string) => (id ? roster.get(id)?.info.shortName ?? 'a teammate' : 'a teammate');
   const carrier = name(e.playerId);
   const who = actual.action === 'pass' ? name(actual.targetPlayerId) : 'the space';
-  if (actual.visibility === 'behind') out.push({ code: 'saw_it', about: 'actual', text: `${carrier} found ${who} behind them, a ball most players never see` });
-  else if (actual.visibility === 'peripheral') out.push({ code: 'saw_it', about: 'actual', text: `${carrier} spotted ${who} on the edge of their vision` });
+  if (actual.visibility === 'behind') out.push({ code: 'saw_it', about: 'actual', text: `${carrier} found ${who} outside their modeled view, a ball most players never see` });
+  else if (actual.visibility === 'peripheral') out.push({ code: 'saw_it', about: 'actual', text: `${carrier} spotted ${who} at the edge of their modeled view` });
   const bypassed = actual.features?.bypassed ?? 0;
   if (bypassed >= 3) out.push({ code: 'hard_to_find', about: 'actual', text: `it took ${bypassed} defenders out of the game`, value: bypassed });
   if (actual.pSuccess < 0.7) out.push({ code: 'hard_to_find', about: 'actual', text: `a ${pct(actual.pSuccess)} ball that most players wouldn't risk`, value: actual.pSuccess });
