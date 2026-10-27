@@ -34,7 +34,7 @@ To reproduce it: open `http://localhost:5173/?seed=7&speed=8&autostart&jump` (th
 
 ## How it works
 
-Ghost Replay runs on a **live synthetic event stream**: a seeded match generator plays a whole match and streams its events to the browser in real time (1× to 60× speed). It doesn't ingest real broadcasts or video, and it doesn't need to; the brief is about event data.
+Ghost Replay runs on a **live synthetic event stream**: a seeded match generator plays a whole match and streams its events to the browser in real time (1× to 60× speed) along with every players coordinates. It doesn't ingest real broadcasts or video, and it doesn't need to; the brief is about event data.
 
 | Stage | What happens |
 | --- | --- |
