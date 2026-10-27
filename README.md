@@ -2,7 +2,9 @@
 
 **Football analytics tells us what happened. Ghost Replay reveals what could have happened.**
 
-**Demo video (under 2 minutes):** [VIDEO_LINK_HERE](https://youtu.be/rlqMjAAkvyk?si=8kh8gf-9aYWRQ3WD)
+**Demo video (under 2 minutes):** [Watch the demo video](https://youtu.be/rlqMjAAkvyk?si=8kh8gf-9aYWRQ3WD)
+
+**Try it live:** [ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net](https://ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net/), or jump straight to the demo moment: [seed 7, first ghost moment](https://ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net/?seed=7&speed=8&autostart&jump)
 
 Ghost Replay turns a live stream of synthetic football events into an interactive AI analyst for fans, pundits and broadcasters. When a player faces a pivotal decision, it freezes the action, evaluates the plausible alternatives, and simulates how the next few seconds might unfold as defenders react.
 
@@ -67,9 +69,9 @@ The model also writes studio lines, half- and full-time summaries, match-pulse l
 
 | Microsoft / GitHub piece | Status |
 | --- | --- |
-| Azure OpenAI via Microsoft Foundry | Integrated in code (`server/src/ai/askAI.ts`); deployment credentials are being added. Without them the app runs fully on fact-built explanations, which is what the demo video shows ("Written straight from the engine facts"). |
-| Azure hosting (Static Web Apps for the client, App Service for the WebSocket server) | Planned |
-| GitHub | Git repository, to be published publicly on GitHub for judging; TypeScript monorepo with 69 automated engine tests and a reproducible validation script |
+| Azure OpenAI via Microsoft Foundry | **Live**: gpt-4.1-mini, called only from `server/src/ai/askAI.ts`. Every explanation is fact-checked before it is shown. The demo video was recorded before the credentials were added, so it shows the fact-built explanations ("Written straight from the engine facts") that the app falls back to when the AI is off or slow. |
+| Azure App Service | **Live** (Linux, Node 22): one Web App serves the client and the WebSocket server. |
+| GitHub | Public repository; GitHub Actions installs, runs the 69 automated engine tests, builds and deploys to Azure on every push to `main`; reproducible validation script |
 
 ---
 

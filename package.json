@@ -15,7 +15,7 @@
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @ghost/server\" \"npm run dev -w @ghost/client\"",
     "validate": "npm run validate -w @ghost/engine",
     "build": "npm run build -w @ghost/client",
-    "start": "npm start -w @ghost/server"
+    "start": "node scripts/start.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
