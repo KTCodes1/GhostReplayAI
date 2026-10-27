@@ -37,6 +37,12 @@ jobs:
       - name: Drop git metadata from the package
         run: rm -rf .git
 
+      # An earlier Azure build left oryx-manifest.toml + node_modules.tar.zst in the app folder;
+      # while that manifest names the archive, startup unpacks it over our node_modules.
+      # Shipping an empty manifest overwrites it, so the app runs as built here.
+      - name: Replace the stale Azure build manifest
+        run: echo "# built by GitHub Actions; nothing for Azure to unpack" > oryx-manifest.toml
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
