@@ -22,5 +22,15 @@ if (lstatSync('node_modules', { throwIfNoEntry: false })?.isSymbolicLink()) {
 }
 rmSync('_del_node_modules', { recursive: true, force: true });
 
-const child = spawn('npm', ['start', '-w', '@ghost/server'], { stdio: 'inherit', shell: true });
-child.on('exit', (code) => process.exit(code ?? 1));
+const run = (args) =>
+  new Promise((done) => spawn('npm', args, { stdio: 'inherit', shell: true }).on('exit', (code) => done(code ?? 1)));
+
+// Last resort: if the libraries are gone (a dangling link to a wiped /node_modules), reinstall them.
+if (!existsSync('node_modules/tsx/package.json')) {
+  console.log('[start] node_modules missing, running npm ci');
+  if (lstatSync('node_modules', { throwIfNoEntry: false })) rmSync('node_modules', { recursive: true, force: true });
+  const code = await run(['ci', '--no-audit', '--no-fund']);
+  if (code) process.exit(code);
+}
+
+process.exit(await run(['start', '-w', '@ghost/server']));
