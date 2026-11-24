@@ -4,8 +4,6 @@
 
 **Demo video (under 2 minutes):** [Watch the demo video](https://youtu.be/rlqMjAAkvyk?si=8kh8gf-9aYWRQ3WD)
 
-**Try it live:** [ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net](https://ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net/), or jump straight to the demo moment: [seed 7, first ghost moment](https://ghostreplayai-fnbfh7cjgtb2fggd.northcentralus-01.azurewebsites.net/?seed=7&speed=8&autostart&jump)
-
 Ghost Replay turns a live stream of synthetic football events into an interactive AI analyst for fans, pundits and broadcasters. When a player faces a pivotal decision, it freezes the action, evaluates the plausible alternatives, and simulates how the next few seconds might unfold as defenders react.
 
 Its defining idea is **fair, evidence-backed decision analysis**. A modeled view of what the player could see, player movement, execution difficulty, match context and simulated outcomes separate a *clear missed opportunity* from a *reasonable choice*, or from a moment where there is *not enough evidence to judge*. An **evidence-checked AI** (Azure OpenAI through Microsoft Foundry) explains why each moment mattered, and every claim it makes is checked against the engine's facts before anyone sees it.
